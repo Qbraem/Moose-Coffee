@@ -165,8 +165,11 @@ const server = http.createServer(async (req, res) => {
       if (!f.startsWith(PUB)) return send(res, 403, {});
       return fs.readFile(f, (e, d) => {
         if (e) { res.writeHead(404); return res.end("Niet gevonden"); }
-        const ext = path.extname(f), heavy = /^\/(photos|icons)\//.test(p) || ext === ".png";
-        res.writeHead(200, { "Content-Type": TYPES[ext] || "application/octet-stream", "Cache-Control": heavy ? "public, max-age=86400" : "no-cache" });
+        // Altijd even navragen bij de server (ETag): gewijzigde foto's verschijnen meteen, ongewijzigde komen uit het geheugen van de telefoon.
+        const ext = path.extname(f), etag = '"' + crypto.createHash("sha1").update(d).digest("hex").slice(0, 20) + '"';
+        const head = { "Content-Type": TYPES[ext] || "application/octet-stream", "Cache-Control": "no-cache", ETag: etag };
+        if (req.headers["if-none-match"] === etag) { res.writeHead(304, head); return res.end(); }
+        res.writeHead(200, head);
         res.end(d);
       });
     }

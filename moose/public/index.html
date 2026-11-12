@@ -265,7 +265,8 @@ const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,so
   off:[],needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
-const photoSrc=n=>"/photos/"+DM[n].slug+".jpg";
+const PV="3"; // verhoog dit getal als je foto's vervangt
+const photoSrc=n=>"/photos/"+DM[n].slug+".jpg?v="+PV;
 const img=(n,props)=>{const i=h("img",Object.assign({src:photoSrc(n),alt:"",draggable:"false",decoding:"async"},props));i.onerror=()=>{i.style.opacity=0};return i};
 
 /* ---------- tekst ---------- */
@@ -320,7 +321,7 @@ let tt;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on
 /* ---------- hero en filmstrook ---------- */
 function paintHero(anim){
   const d=DM[S.f.drink],i=DRINKS.indexOf(d),im=$("#himg");
-  if(!im.src.endsWith("/photos/"+d.slug+".jpg")){im.style.opacity=1;im.src=photoSrc(d.n)}
+  if(im.getAttribute("src")!==photoSrc(d.n)){im.style.opacity=1;im.src=photoSrc(d.n)}
   im.alt=d.n+": filmfoto van een kopje op een gekleurde achtergrond";
   if(anim){im.classList.remove("dev");void im.offsetWidth;im.classList.add("dev")}
   $("#hname").textContent=title({drink:d.n,dbl:S.f.dbl});$("#hdesc").textContent=d.d;
