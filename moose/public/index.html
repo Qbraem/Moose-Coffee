@@ -790,7 +790,7 @@ function renderStats(){
   const since=new Date(st.since).toLocaleDateString("nl-BE",{day:"numeric",month:"long",year:"numeric"});
   const dm=Math.max(1,...Object.values(st.drinks));
   fill(el,
-    h("div",{class:"stmoose"},h("div",{},h("h1",{},"Statistieken"),h("p",{class:"lead"},"Alle koffies sinds "+since+".")),mooseSvg()),
+    h("div",{},h("h1",{},"Statistieken"),h("p",{class:"lead"},"Alle koffies sinds "+since+".")),
     h("div",{class:"top2"},
       h("div",{class:"big"},h("b",{"aria-live":"polite"},String(st.total)),h("span",{},st.total===1?"koffie gemaakt":"koffies gemaakt"),h("small",{},st.caps+" capsules gebruikt")),
       cur?h("div",{class:"fact"},h("small",{},"Wist je dat…"),h("b",{},cur.v),h("small",{style:"letter-spacing:.04em;text-transform:none;font-size:15px;color:var(--pine);opacity:.75"},cur.k),h("p",{},cur.s),
