@@ -14,7 +14,7 @@ const TYPES = {
   ".json": "application/json", ".webmanifest": "application/manifest+json"
 };
 
-let orders = [], off = [], subs = [], vapid = null;
+let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = null;
 const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, ""), REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const REDIS = !!(REDIS_URL && REDIS_TOKEN), KEY = "moose:state";
 const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization: "Bearer " + REDIS_TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(cmd) })
@@ -27,6 +27,7 @@ async function loadState() {
         const raw = await redis(["GET", KEY]), st = raw ? JSON.parse(raw) : {};
         orders = Array.isArray(st.orders) ? st.orders : []; off = Array.isArray(st.off) ? st.off : [];
         subs = Array.isArray(st.subs) ? st.subs : []; vapid = st.vapid || null;
+        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = Number.isInteger(st.caps) ? st.caps : null;
         return console.log("  Opslag: online (Upstash), " + orders.length + " bestellingen geladen");
       } catch (e) {
         console.log("  Opslag: Upstash niet bereikbaar (" + e.message + "), poging " + i + " van 4");
@@ -36,7 +37,7 @@ async function loadState() {
     }
   }
   try { orders = JSON.parse(fs.readFileSync(DB, "utf8")); } catch (e) {}
-  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; } catch (e) {}
+  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = Number.isInteger(c.caps) ? c.caps : null; } catch (e) {}
 }
 async function load() { await loadState(); ensureVapid(); }
 function writer(file, get) {
@@ -44,8 +45,8 @@ function writer(file, get) {
   return () => { clearTimeout(t); t = setTimeout(() => fs.writeFile(file + ".tmp", JSON.stringify(get()), e => { if (!e) fs.rename(file + ".tmp", file, () => {}); }), 100); };
 }
 let rt = null;
-const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
-const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid }));
+const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
+const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid, users, sess, caps }));
 const save = () => { if (REDIS) saveRemote(); else saveLocal(); }, saveCfg = () => { if (REDIS) saveRemote(); else saveCfgLocal(); };
 
 // ---------- meldingen via ntfy ----------
@@ -142,6 +143,39 @@ function authed(req) {
 }
 const deny = (res, req) => send(res, blocked(req) ? 429 : 401, { error: blocked(req) ? "Te vaak geprobeerd. Wacht een minuut." : "Code klopt niet" });
 
+
+// ---------- accounts met naam en pincode ----------
+// Geen e-mail en geen wachtwoord: een naam en een pincode van 4 tot 6 cijfers. De pincode wordt nooit leesbaar bewaard (scrypt met eigen zout),
+// de sessie is een lange willekeurige sleutel op het toestel waarvan de server alleen de afgeschermde waarde kent.
+const nameKey = n => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const sha = t => crypto.createHash("sha256").update(t).digest("hex");
+const hashPin = (pin, salt) => crypto.scryptSync(pin, salt, 32).toString("hex");
+const aFails = new Map(); let aG = { n: 0, t: 0 };
+const aBlocked = req => (aG.n >= 60 && Date.now() - aG.t < 60000) || ((x => !!x && x.n >= 10 && Date.now() - x.t < 60000)(aFails.get(ipOf(req))));
+const aFail = req => {
+  if (Date.now() - aG.t >= 60000) aG = { n: 0, t: Date.now() }; aG.n++;
+  const k = ipOf(req), f = aFails.get(k); if (!f || Date.now() - f.t >= 60000) aFails.set(k, { n: 1, t: Date.now() }); else f.n++; };
+function userOf(req) {
+  const t = String(req.headers["x-token"] || ""); if (t.length < 20) return null;
+  const h = sha(t), se = sess.find(x => x.h === h); if (!se) return null;
+  return users.find(u => u.id === se.u) || null;
+}
+function newSession(u) {
+  const t = crypto.randomBytes(32).toString("base64url");
+  sess.push({ h: sha(t), u: u.id, at: Date.now() });
+  const mine = sess.filter(x => x.u === u.id); if (mine.length > 10) sess = sess.filter(x => x.u !== u.id || mine.slice(-10).includes(x));
+  return t;
+}
+// Het gewone: de combinatie die het vaakst besteld is (bij gelijkstand de meest recente).
+const sig = o => [o.drink, o.dbl ? 1 : 0, o.milk, o.syrup, o.sugar].join("|");
+function gewone(u) {
+  const c = new Map();
+  for (const o of u.hist || []) { const k = sig(o), e = c.get(k); if (e) e.n++; else c.set(k, { n: 1, o }); }
+  let best = null; for (const e of c.values()) if (!best || e.n > best.n) best = e;
+  return best ? Object.assign({ count: best.n }, best.o) : null;
+}
+const me = u => ({ name: u.name, hist: (u.hist || []).slice(0, 12), gewone: gewone(u), total: u.total || 0 });
+
 // ---------- voorraad ----------
 const isOff = (g, v) => g === "sugar" ? (v === "Zoetstof" ? off.includes("sugar:Zoetstof") : v !== "Geen" && off.includes("sugar:Suiker"))
   : v !== "Geen" && v !== "Geen melk" && off.includes(g + ":" + v);
@@ -157,8 +191,8 @@ const readBody = req => new Promise((ok, no) => {
 // Bij afsluiten (bijvoorbeeld tijdens een nieuwe uitrol) eerst alles wegschrijven, zodat de laatste wijziging niet verloren gaat.
 async function flushAndExit() {
   try {
-    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid })]); }
-    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid })); }
+    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps })]); }
+    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid, users, sess, caps })); }
   } catch (e) { console.log("Wegschrijven bij afsluiten mislukt: " + e.message); }
   process.exit(0);
 }
@@ -169,7 +203,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === "/healthz") return send(res, 200, { ok: true });
     if (url.pathname === "/api/orders" && req.method === "GET")
-      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true });
+      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps });
     if (url.pathname === "/api/pin" && req.method === "POST") {
       const b = await readBody(req);
       if (blocked(req)) return deny(res, req);
@@ -204,6 +238,59 @@ const server = http.createServer(async (req, res) => {
       pushTo(x => x.roles.includes("barista"), { title: "Moose", body: "Meldingen werken. Je krijgt er een bij elke nieuwe bestelling.", tag: "moose-test" });
       return send(res, 200, { ok: true });
     }
+    if (url.pathname === "/api/account/register" && req.method === "POST") {
+      const b = await readBody(req), name = s(b.name, 30).trim().replace(/\s+/g, " "), pin = String(b.pin || "");
+      if (aBlocked(req)) return send(res, 429, { error: "Te vaak geprobeerd. Wacht een minuut." });
+      aFail(req); // elke poging telt mee, zodat niemand eindeloos accounts kan maken
+      if (name.length < 2) return send(res, 400, { error: "Kies een naam van minstens 2 tekens" });
+      if (!/^\d{4,6}$/.test(pin)) return send(res, 400, { error: "De pincode is 4 tot 6 cijfers" });
+      if (users.some(u => u.key === nameKey(name))) return send(res, 409, { error: "Die naam is al in gebruik. Ben jij het? Log dan in." });
+      if (users.length >= 300) return send(res, 429, { error: "Er zijn al te veel accounts" });
+      const salt = crypto.randomBytes(16).toString("hex");
+      const u = { id: crypto.randomBytes(8).toString("hex"), name, key: nameKey(name), salt, hash: hashPin(pin, salt), hist: [], total: 0, createdAt: Date.now(), fails: 0, lockUntil: 0 };
+      users.push(u); const token = newSession(u); saveCfg();
+      return send(res, 201, Object.assign({ token }, me(u)));
+    }
+    if (url.pathname === "/api/account/login" && req.method === "POST") {
+      const b = await readBody(req), pin = String(b.pin || ""), u = users.find(x => x.key === nameKey(s(b.name, 30)));
+      if (aBlocked(req)) return send(res, 429, { error: "Te vaak geprobeerd. Wacht een minuut." });
+      if (u && u.lockUntil > Date.now()) return send(res, 429, { error: "Dit account is even vergrendeld na te veel pogingen. Probeer het over een paar minuten opnieuw." });
+      // Altijd dezelfde rekentijd en hetzelfde antwoord, ook als de naam niet bestaat.
+      const ok = u ? same(hashPin(pin, u.salt), u.hash) : (hashPin(pin, "00"), false);
+      if (!ok) {
+        aFail(req);
+        if (u && ++u.fails >= 5) { u.fails = 0; u.lockUntil = Date.now() + 5 * 60000; }
+        if (u) saveCfg();
+        return send(res, 401, { error: "Naam of pincode klopt niet" });
+      }
+      u.fails = 0; u.lockUntil = 0; const token = newSession(u); saveCfg();
+      return send(res, 200, Object.assign({ token }, me(u)));
+    }
+    if (url.pathname === "/api/me" && req.method === "GET") {
+      const u = userOf(req); if (!u) return send(res, 401, { error: "niet ingelogd" });
+      return send(res, 200, me(u));
+    }
+    if (url.pathname === "/api/account/logout" && req.method === "POST") {
+      const t = String(req.headers["x-token"] || ""); if (t) { sess = sess.filter(x => x.h !== sha(t)); saveCfg(); }
+      return send(res, 200, { ok: true });
+    }
+    if (url.pathname === "/api/account/delete" && req.method === "POST") {
+      const u = userOf(req); if (!u) return send(res, 401, { error: "niet ingelogd" });
+      const b = await readBody(req);
+      if (aBlocked(req)) return send(res, 429, { error: "Te vaak geprobeerd. Wacht een minuut." });
+      if (!same(hashPin(String(b.pin || ""), u.salt), u.hash)) { aFail(req); return send(res, 401, { error: "Pincode klopt niet" }); }
+      users = users.filter(x => x !== u); sess = sess.filter(x => x.u !== u.id); saveCfg();
+      return send(res, 200, { ok: true });
+    }
+    if (url.pathname === "/api/caps" && req.method === "PATCH") {
+      if (!authed(req)) return deny(res, req);
+      const b = await readBody(req);
+      if (b.n === null) caps = null;
+      else if (Number.isFinite(Number(b.n)) && b.n !== "" && b.n !== true) caps = Math.min(999, Math.max(0, Math.round(Number(b.n))));
+      else return send(res, 400, { error: "ongeldig aantal" });
+      saveCfg();
+      return send(res, 200, { caps });
+    }
     if (url.pathname === "/api/off" && req.method === "PATCH") {
       if (!authed(req)) return deny(res, req);
       const b = await readBody(req), key = String(b.item || "");
@@ -216,10 +303,14 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/orders" && req.method === "POST") {
       const b = await readBody(req), name = s(b.name, 40).trim();
       if (!name || !b.drink) return send(res, 400, { error: "naam en drankje zijn verplicht" });
+      if (caps === 0) return send(res, 409, { error: "De capsules zijn op" });
       for (const [g, v] of [["drink", b.drink], ["milk", b.milk], ["syrup", b.syrup], ["sugar", b.sugar]])
         if (isOff(g, s(v, 30))) return send(res, 409, { error: s(v, 30) + " is op" });
       const o = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), drink: s(b.drink, 30), dbl: !!b.dbl, milk: s(b.milk, 30), syrup: s(b.syrup, 30), sugar: s(b.sugar, 30), note: s(b.note, 200), name, by: s(b.by, 40), status: "nieuw", createdAt: Date.now() };
-      orders.unshift(o); orders = orders.slice(0, 200); save();
+      orders.unshift(o); orders = orders.slice(0, 200);
+      const au = userOf(req);
+      if (au) { au.hist = [{ drink: o.drink, dbl: o.dbl, milk: o.milk, syrup: o.syrup, sugar: o.sugar, note: o.note, at: o.createdAt }].concat(au.hist || []).slice(0, 30); au.total = (au.total || 0) + 1; saveCfg(); }
+      save();
       notify("Nieuwe koffie van " + o.name, label(o) + (o.note ? " (" + o.note + ")" : ""), "order-" + o.id);
       return send(res, 201, o);
     }
@@ -236,7 +327,14 @@ const server = http.createServer(async (req, res) => {
       if (b.status !== undefined) {
         if (!STATUS.includes(b.status)) return send(res, 400, { error: "ongeldige status" });
         o.status = b.status;
-        if (b.status === "klaar") { o.etaAt = null; o.readyAt = Date.now(); }
+        if (b.status === "klaar") {
+          o.etaAt = null; o.readyAt = Date.now();
+          if (prev !== "klaar" && caps !== null) {
+            const before = caps; caps = Math.max(0, caps - (o.dbl ? 2 : 1)); saveCfg();
+            if (caps === 0 && before > 0) notify("De capsules zijn op", "Klanten kunnen niet meer bestellen tot je het aantal bijwerkt.", "moose-caps");
+            else if (caps <= 5 && before > 5) notify("Nog " + caps + " capsules", "Vul aan en werk het aantal bij.", "moose-caps");
+          }
+        }
       }
       if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o), "order-" + o.id);
       if (b.status && b.status !== prev) {

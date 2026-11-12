@@ -48,6 +48,15 @@ De computer met de server moet internet hebben. Per melding gaan alleen de naam,
 opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geheim.
 (Zelf hosten kan ook: zet `NTFY_SERVER=https://jouw-server` erbij.)
 
+## Accounts, "het gewone" en wachttijd
+- **Account met naam en pincode (niet verplicht):** een gast kiest een naam en een pincode van 4 tot 6 cijfers. Daarna onthoudt Moose
+  "het gewone" (de combinatie die het vaakst besteld is) en de laatste bestellingen, op elke telefoon waar je inlogt.
+  De pincode wordt nooit leesbaar bewaard (scrypt met eigen zout). Na 5 foute pogingen is een account 5 minuten vergrendeld, en per adres geldt een limiet.
+  Gasten kunnen uitloggen en hun account zelf wissen (met hun pincode). Zonder account kun je gewoon blijven bestellen.
+- **Wachttijd:** onder elke wachtende bestelling staat hoeveel koffies er nog voor staan en een schatting in minuten.
+- **Capsulevoorraad (barista):** onder Voorraad start je het bijhouden met het aantal capsules dat je hebt. Bij elke klare koffie gaat er een af
+  (twee bij dubbel). Bij 5 of minder krijg je een melding, bij 0 kunnen gasten niet meer bestellen tot je het aantal bijwerkt.
+
 ## Webmeldingen op de telefoon
 Moose kan meldingen sturen naar de telefoon, ook als de app dicht is. Dat vraagt een https-adres (een host zoals Render geeft dat)
 en op iPhone iOS 16.4 of nieuwer met Moose op het beginscherm (Safari, Deel, "Zet op beginscherm"). Er is niets extra te installeren

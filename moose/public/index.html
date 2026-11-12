@@ -199,6 +199,28 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 .stk[aria-pressed=true] em{font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .stk[aria-pressed=true] span{text-decoration:line-through}
 .stk em{font-style:normal;font-size:12px;margin-left:6px}
+.acct{margin-top:26px}
+.acct .card{background:var(--paper);border:2px solid rgba(23,64,46,.14);border-radius:18px;padding:16px 18px;color:var(--pine)}
+.acct h3{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.02em}
+.acct p{margin:0 0 12px;font-size:14px;line-height:1.45}
+.acct .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acct .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.acct .acts .btn{min-height:44px}
+.acct .favbtn{width:100%;min-height:52px;margin:0 0 4px;font-size:16px;text-align:left;display:flex;flex-direction:column;gap:2px;border-radius:16px;padding:10px 16px}
+.acct .favbtn small{font-weight:500;font-size:13px;opacity:.85}
+.acct h4{margin:16px 0 8px;font-size:13px;color:#4d5f4f;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.acct .hist{display:flex;flex-wrap:wrap;gap:8px}
+.acct .hist .btn{min-height:40px;font-size:14px;background:transparent;color:var(--pine)}
+.acct .pinrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.acct .pinrow .field{flex:1 1 140px;min-width:0}
+.acct .field{font-size:16px}
+.wait{margin-top:8px;font-size:14px;font-weight:600;color:var(--pine)}
+.caps{margin:14px 0 4px;padding:14px;border:2px solid rgba(244,211,94,.35);border-radius:16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.caps.low{border-color:var(--tomato);background:rgba(228,69,42,.14)}
+.caps .n{font:800 34px var(--display);letter-spacing:-.04em;min-width:64px;color:var(--butter)}
+.caps.low .n{color:#ff8a72}
+.caps .stk{padding:8px 16px}
+.caps small{flex:1 1 100%;color:#A9BDA9;font-size:14px}
+.caps.low small{color:#ffb5a5;font-weight:700}
 </style>
 </head>
 <body data-view="klant">
@@ -232,6 +254,7 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 
 <main id="klant" class="sheet only-k">
   <div id="opts"></div>
+  <section id="acct" class="acct" aria-label="Account"></section>
   <section id="orders" class="orders" aria-label="Mijn bestellingen"></section>
   <div id="notif" class="notif"></div>
 </main>
@@ -270,7 +293,7 @@ let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.n
 const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],caps:null,acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -320,8 +343,8 @@ function fixSel(){const f=S.f;
   if(isOff("sugar",f.sugar))f.sugar="Geen"}
 
 /* ---------- netwerk ---------- */
-async function api(m,u,b){const r=await fetch(u,{method:m,headers:{"Content-Type":"application/json","X-Pin":LS("moose-pin")||""},body:b?JSON.stringify(b):undefined});
-  if(!r.ok){if(r.status===401&&u!=="/api/pin"){S.pinOk=false;LS("moose-pin","");if(S.view==="barista")renderBarista()}
+async function api(m,u,b){const r=await fetch(u,{method:m,headers:{"Content-Type":"application/json","X-Pin":LS("moose-pin")||"","X-Token":LS("moose-token")||""},body:b?JSON.stringify(b):undefined});
+  if(!r.ok){if(r.status===401&&u!=="/api/pin"&&!/^\/api\/(account|me)/.test(u)){S.pinOk=false;LS("moose-pin","");if(S.view==="barista")renderBarista()}
     throw new Error((await r.json().catch(()=>({}))).error||r.status)}return r.json()}
 function upd(id,d){api("PATCH","/api/orders/"+id,d).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
 let tt;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("on"),3200)}
@@ -404,15 +427,61 @@ function renderOpts(){
 function paintCta(){
   const f=S.f;$("#cta").replaceChildren(h("div",{class:"cta-in"},
     h("div",{class:"cta-t"},h("b",{},(f.name.trim()?f.name.trim()+": ":"")+title(f)),h("span",{},spec(f))),
-    h("button",{class:"go",disabled:isOff("drink",f.drink),onclick:order},"Bestel")))}
+    h("button",{class:"go",disabled:isOff("drink",f.drink)||S.caps===0,onclick:order},S.caps===0?"Capsules op":"Bestel")))}
 async function order(){
   const f=S.f;
   if(!f.name.trim()){f.err=true;renderOpts();const n=$("#naam");if(n){n.focus({preventScroll:true});n.scrollIntoView({behavior:"smooth",block:"center"})}return}
   try{await api("POST","/api/orders",{name:f.name.trim(),drink:f.drink,dbl:f.dbl,milk:f.drink==="Espresso"?"Geen melk":f.milk,syrup:f.syrup,sugar:f.sugar,note:f.note,by:uid});
-    f.note="";f.err=false;renderOpts();toast("Besteld! De barista ziet het meteen.");await poll();$("#orders").scrollIntoView({behavior:"smooth",block:"start"})}
+    f.note="";f.err=false;renderOpts();toast("Besteld! De barista ziet het meteen.");loadMe();await poll();$("#orders").scrollIntoView({behavior:"smooth",block:"start"})}
   catch(e){toast("Bestellen mislukt: "+e.message)}}
 function redo(o){Object.assign(S.f,{drink:o.drink,dbl:!!o.dbl,milk:o.milk,syrup:o.syrup,sugar:o.sugar,note:o.note||""});
   paintHero(true);paintStrip(true);renderOpts();paintCta();window.scrollTo({top:0,behavior:"smooth"})}
+
+/* ---------- account ---------- */
+const tok=()=>LS("moose-token")||"";
+async function loadMe(){
+  if(!tok()){S.acct=null;renderAcct();return}
+  try{S.acct=await api("GET","/api/me");const n=S.acct.name;if(S.f.name!==n){S.f.name=n;LS("koffie-naam",n);renderOpts();paintCta();paintNotif()}}
+  catch(e){if(/niet ingelogd|401/.test(e.message)){LS("moose-token","");S.acct=null}}
+  renderAcct()}
+async function acctGo(kind){
+  const f=S.af;if(f.busy)return;f.busy=true;f.err="";renderAcct();
+  try{const r=await api("POST","/api/account/"+kind,{name:f.name,pin:f.pin});LS("moose-token",r.token);f.pin="";f.name="";f.busy=false;await loadMe();toast(kind==="register"?"Account gemaakt, welkom "+r.name+"!":"Welkom terug, "+r.name+"!")}
+  catch(e){f.busy=false;f.err=e.message;f.pin="";renderAcct()}}
+async function logout(){try{await api("POST","/api/account/logout",{})}catch(e){}LS("moose-token","");S.acct=null;S.del={open:false,pin:""};renderAcct();toast("Uitgelogd")}
+async function wipeAcct(){try{await api("POST","/api/account/delete",{pin:S.del.pin});LS("moose-token","");S.acct=null;S.del={open:false,pin:""};renderAcct();toast("Account gewist")}catch(e){S.del.pin="";toast(e.message);renderAcct()}}
+const favTxt=o=>title(o)+", "+spec(o);
+function orderFav(g){const f=S.f;Object.assign(f,{drink:g.drink,dbl:!!g.dbl,milk:g.milk,syrup:g.syrup,sugar:g.sugar,note:g.note||""});
+  if(isOff("drink",f.drink)){toast(f.drink+" is op");return}
+  paintHero(true);paintStrip(true);renderOpts();paintCta();order()}
+function renderAcct(){
+  const box=$("#acct"),a=S.acct,f=S.af,ae=document.activeElement,keep=ae&&ae.closest&&ae.closest("#acct")&&ae.id?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
+  if(!a){
+    fill(box,h("div",{class:"card"},h("h3",{},"Account (niet verplicht)"),
+      h("p",{},"Kies een naam en een pincode van 4 tot 6 cijfers. Dan onthoudt Moose “het gewone” en je geschiedenis, ook op een andere telefoon."),
+      h("div",{class:"two"},
+        h("input",{type:"text",id:"an",class:"field",value:f.name,placeholder:"Naam",autocomplete:"username","aria-label":"Naam voor je account",maxlength:"30",oninput:e=>{f.name=e.target.value}}),
+        h("input",{type:"password",id:"ap",class:"field",value:f.pin,placeholder:"Pincode",inputmode:"numeric",pattern:"[0-9]*",maxlength:"6",autocomplete:"current-password","aria-label":"Pincode van 4 tot 6 cijfers",oninput:e=>{f.pin=e.target.value.replace(/\D/g,"");e.target.value=f.pin},onkeydown:e=>{if(e.key==="Enter")acctGo("login")}})),
+      f.err?h("div",{class:"err",role:"alert"},f.err):null,
+      h("div",{class:"acts"},h("button",{class:"btn",disabled:f.busy,onclick:()=>acctGo("register")},"Account maken"),h("button",{class:"btn ghost",disabled:f.busy,onclick:()=>acctGo("login")},"Inloggen"))));
+  }else{
+    const g=a.gewone,seen=new Set(),hist=[];for(const o of a.hist){const k=favTxt(o);if(!seen.has(k)){seen.add(k);hist.push(o)}if(hist.length>=5)break}
+    fill(box,h("div",{class:"card"},h("h3",{},"Hoi "+a.name),
+      g?[h("button",{class:"btn favbtn",onclick:()=>orderFav(g)},h("span",{},"Bestel het gewone"),h("small",{},favTxt(g)+(g.count>1?" · "+g.count+"× besteld":""))),h("p",{},"Eén tik en de barista ziet het. Je kunt het daarna nog annuleren.")]:h("p",{},"Je bent ingelogd. Na je eerste bestelling verschijnt hier “het gewone”."),
+      hist.length>1?[h("h4",{},"Eerder besteld"),h("div",{class:"hist"},hist.map(o=>h("button",{class:"btn",onclick:()=>redo(o)},favTxt(o))))]:null,
+      S.del.open?h("div",{class:"pinrow"},h("input",{type:"password",id:"adp",class:"field",value:S.del.pin,placeholder:"Pincode om te wissen",inputmode:"numeric",maxlength:"6","aria-label":"Pincode bevestigen om je account te wissen",oninput:e=>{S.del.pin=e.target.value.replace(/\D/g,"");e.target.value=S.del.pin}}),
+        h("button",{class:"btn",onclick:wipeAcct},"Definitief wissen"),h("button",{class:"btn ghost",onclick:()=>{S.del={open:false,pin:""};renderAcct()}},"Toch niet")):
+      h("div",{class:"acts"},h("button",{class:"btn ghost",onclick:logout},"Uitloggen"),h("button",{class:"btn ghost",onclick:()=>{S.del.open=true;renderAcct();const x=$("#adp");if(x)x.focus()}},"Account wissen"))))}
+  if(keep){const el=document.getElementById(keep.id);if(el){el.focus({preventScroll:true});try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}}
+
+/* ---------- wachttijd ---------- */
+function waitInfo(o){
+  const live=S.orders.filter(x=>now()-x.createdAt<12*36e5);
+  const busy=live.filter(x=>x.status==="bezig"),ahead=live.filter(x=>x.status==="nieuw"&&x.createdAt<o.createdAt&&x.id!==o.id);
+  const n=busy.length+ahead.length,mins=(x=>DM[x.drink]?DM[x.drink].mins:3);
+  let t=busy.reduce((a,x)=>a+Math.max(0,((x.etaAt||now())-now())/60000),0)+ahead.reduce((a,x)=>a+mins(x),0)+mins(o);
+  t=Math.max(1,Math.round(t));
+  return (n===0?"Je bent de volgende. ":n===1?"Nog 1 koffie voor je. ":"Nog "+n+" koffies voor je. ")+"Ongeveer "+t+" min."}
 
 /* ---------- mijn bestellingen ---------- */
 function mine(){const nm=S.f.name.trim().toLowerCase();
@@ -421,10 +490,11 @@ function orderCard(o){
   const c=h("article",{class:"order","data-s":o.status},h("div",{class:"th"},img(o.drink)));
   const b=h("div",{},h("b",{},title(o)),h("div",{class:"sub"},spec(o)));
   const st=h("div",{class:"state"},h("span",{class:"pill "+(o.status==="klaar"?"klaar":o.status==="geweigerd"?"nee":"")},ST[o.status]||o.status));
-  if(o.status==="nieuw")st.append(h("span",{"data-t":"since","data-at":o.createdAt},ago(now()-o.createdAt)));
+  if(o.status==="nieuw"){st.append(h("span",{"data-t":"since","data-at":o.createdAt},ago(now()-o.createdAt)));}
   if(o.status==="bezig"&&o.etaAt){st.append(h("span",{"data-t":"left","data-at":o.etaAt},leftTxt(o.etaAt-now())));
     b.append(st,h("div",{class:"prog"},h("i",{"data-t":"bar","data-at":o.etaAt,"data-min":o.etaMin||5})));}
   else b.append(st);
+  if(o.status==="nieuw")b.append(h("div",{class:"wait"},waitInfo(o)));
   if(o.status==="voorstel")b.append(h("div",{class:"note"},"Barista: "+(o.reply||"")),h("div",{class:"acts"},
     h("button",{class:"btn",onclick:()=>upd(o.id,{status:"nieuw",accepted:true})},"Voorstel aannemen"),h("button",{class:"btn ghost",onclick:()=>upd(o.id,{status:"weg"})},"Laat maar")));
   if(o.status==="nieuw")b.append(h("div",{class:"acts"},h("button",{class:"btn ghost",onclick:()=>upd(o.id,{status:"weg"})},"Annuleren")));
@@ -474,10 +544,17 @@ async function tryPin(){const v=($("#pin").value||"").trim();if(!v)return;
   try{await api("POST","/api/pin",{pin:v});LS("moose-pin",v);S.pinOk=true;renderBarista()}
   catch(e){LS("moose-pin","");const x=$("#perr");if(x)x.textContent=e.message;const i=$("#pin");if(i){i.value="";i.focus()}}}
 function toggleOff(key){api("PATCH","/api/off",{item:key,off:!S.off.includes(key)}).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
+function setCaps(n){api("PATCH","/api/caps",{n}).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
+function capsPanel(){const c=S.caps,low=c!==null&&c<=5;
+  return h("div",{class:"caps"+(low?" low":"")},
+    c===null?[h("b",{},"Capsules"),h("button",{class:"stk",onclick:()=>setCaps(20)},"Bijhouden starten"),h("small",{},"Vul het aantal capsules in dat je nog hebt. Bij elke klare koffie gaat er één af (twee bij dubbel). Als het aantal 0 is, kunnen gasten niet meer bestellen.")]
+    :[h("span",{class:"n","aria-live":"polite"},String(c)),h("span",{},"capsules over"),
+      h("button",{class:"stk","aria-label":"Eén capsule minder",onclick:()=>setCaps(Math.max(0,c-1))},"−1"),h("button",{class:"stk","aria-label":"Eén capsule erbij",onclick:()=>setCaps(c+1)},"+1"),h("button",{class:"stk","aria-label":"Tien capsules erbij",onclick:()=>setCaps(c+10)},"+10"),h("button",{class:"stk",onclick:()=>setCaps(null)},"Niet bijhouden"),
+      low?h("small",{},c===0?"De capsules zijn op. Gasten kunnen niet bestellen tot je het aantal bijwerkt.":"Bijna op. Vul aan en werk het aantal bij."):null])}
 function stockPanel(){
   const grp=(t,items)=>[h("h3",{},t),h("div",{class:"stkrow"},items.map(([label,key])=>{const o=S.off.includes(key);
     return h("button",{class:"stk","aria-pressed":o,onclick:()=>toggleOff(key)},h("span",{},label),o?h("em",{},"op"):null)}))];
-  return h("section",{class:"stock","aria-label":"Voorraad"},h("h2",{},"Voorraad"),h("p",{class:"hint"},"Tik aan wat op is. Klanten kunnen het dan niet meer kiezen."),
+  return h("section",{class:"stock","aria-label":"Voorraad"},h("h2",{},"Voorraad"),capsPanel(),h("p",{class:"hint"},"Tik aan wat op is. Klanten kunnen het dan niet meer kiezen."),
     grp("Drankjes",DRINKS.map(d=>[d.n,"drink:"+d.n])),grp("Melk",MILK.filter(m=>m!=="Geen melk").map(m=>[m,"milk:"+m])),
     grp("Siroop",SYRUP.filter(x=>x[1]).map(x=>[x[0],"syrup:"+x[0]])),grp("Suiker",[["Suiker","sugar:Suiker"],["Zoetstof","sugar:Zoetstof"]]))}
 function renderBarista(){
@@ -518,7 +595,7 @@ async function poll(){
   try{const r=await fetch("/api/orders",{cache:"no-store"});if(!r.ok)throw new Error(r.status);const j=await r.json();
     S.skew=j.now-Date.now();S.needPin=!!j.pin;S.pushAvail=!!j.push;S.prefix=j.prefix||"";S.ntfy=j.ntfy||S.ntfy;if(!S.needPin)S.pinOk=true;
     if(S.needPin&&!S.pinOk&&!S.pinChecking&&LS("moose-pin")){S.pinChecking=true;api("POST","/api/pin",{pin:LS("moose-pin")}).then(()=>{S.pinOk=true;if(S.view==="barista")renderBarista()}).catch(()=>{}).finally(()=>{S.pinChecking=false})}
-    const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail]);
+    S.caps=Number.isInteger(j.caps)?j.caps:null;const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps]);
     if(S.pushAvail&&!S.push.checked)pushState();
     if(ko!==lastOff){lastOff=ko;S.off=j.off||[];fixSel();const a=document.activeElement,typing=a&&a.tagName==="INPUT";paintHero(false);paintStrip(false);renderOpts();paintCta();paintNotif();if(S.view==="barista"&&!typing)renderBarista()}
     if(!S.online){S.online=true;$("#off").hidden=true}
@@ -539,7 +616,7 @@ function setView(v){S.view=v;LS("moose-view",v);document.body.dataset.view=v;
 $("#tk").onclick=()=>setView("klant");$("#tb").onclick=()=>setView("barista");
 
 buildStrip();paintHero(true);paintStrip(true);renderOpts();paintCta();renderOrders();setView(S.view);
-poll();setInterval(poll,2000);setInterval(tick,1000);
+loadMe();renderAcct();poll();setInterval(poll,2000);setInterval(tick,1000);setInterval(renderOrders,30000);
 })();
 </script>
 </body>
