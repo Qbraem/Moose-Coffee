@@ -433,7 +433,7 @@ function paintHero(anim){
   $("#hname").textContent=title({drink:d.n,dbl:S.f.dbl});$("#hdesc").textContent=d.d;
 }
 function buildStrip(){const r=$("#reel");
-  DRINKS.forEach((d,i)=>r.append(h("button",{class:"frame",role:"radio","aria-checked":"false","data-n":d.n,onclick:()=>choose(d.n)},
+  DRINKS.forEach((d,i)=>r.append(h("button",{class:"frame",role:"radio","aria-checked":"false","data-n":d.n,onclick:()=>choose(d.n),onmousedown:e=>e.preventDefault()},
     h("span",{class:"ph"},img(d.n,{loading:"lazy"})),h("small",{},d.n))))}
 // De balk blijft staan. Alleen als het gekozen drankje (deels) buiten beeld valt, schuift hij net genoeg op.
 function reveal(b){const t=b.closest(".track"),tr=t.getBoundingClientRect(),br=b.getBoundingClientRect(),m=14;let d=0;
@@ -443,7 +443,7 @@ function reveal(b){const t=b.closest(".track"),tr=t.getBoundingClientRect(),br=b
 function paintStrip(scroll){document.querySelectorAll(".frame").forEach(b=>{const on=b.dataset.n===S.f.drink,o=isOff("drink",b.dataset.n);b.setAttribute("aria-checked",on);b.classList.toggle("off",o);b.setAttribute("aria-disabled",o);if(on&&scroll)reveal(b)})}
 function choose(n){if(isOff("drink",n)){toast(n+" is op");return}const prev=S.f.drink;S.f.drink=n;const d=DM[n];if(prev!==n)nextQuote();
   if(!d.milk)S.f.milk="Geen melk";else if(S.f.milk==="Geen melk"&&n!=="Americano")S.f.milk="Volle melk";
-  paintHero(prev!==n);paintStrip(true);renderOpts();paintCta()}
+  paintHero(prev!==n);paintStrip(false);renderOpts();paintCta()}
 
 /* ---------- opties ---------- */
 function chip(group,val,pressed,on,dot){const g={melk:"milk",siroop:"syrup",suiker:"sugar"}[group],off=!!g&&isOff(g,val);
