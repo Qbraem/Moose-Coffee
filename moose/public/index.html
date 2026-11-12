@@ -25,8 +25,8 @@
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='.33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.2' intercept='-.6'/%3E%3CfeFuncG type='linear' slope='2.2' intercept='-.6'/%3E%3CfeFuncB type='linear' slope='2.2' intercept='-.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{background:var(--pine)}
-body{margin:0;overflow-x:hidden;background:var(--sage);color:var(--roast);font:500 16px/1.4 var(--display);-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh}
+html{background:var(--pine);overflow-x:clip;max-width:100%}
+body{margin:0;overflow-x:hidden;overflow-x:clip;max-width:100%;background:var(--sage);color:var(--roast);font:500 16px/1.4 var(--display);-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh}
 button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:3px solid var(--tomato);outline-offset:2px}
 body[data-view=barista] :focus-visible{outline-color:var(--butter)}
@@ -45,8 +45,7 @@ body[data-view=barista] .only-k,body[data-view=stats] .only-k,body[data-view=kla
 .seg button[aria-selected=true]{background:var(--butter);color:var(--pine);opacity:1}
 
 /* ---------- hero ---------- */
-.stage::before{content:"";position:absolute;right:-120px;top:70px;width:380px;height:380px;border-radius:50%;background:var(--butter);opacity:.09;pointer-events:none}
-.stage::after{content:"";position:absolute;left:-90px;bottom:90px;width:240px;height:240px;border-radius:50%;background:var(--pine-2);opacity:.55;pointer-events:none}
+.stage{background:radial-gradient(circle at 100% 14%,rgba(244,211,94,.09) 0 190px,transparent 191px),radial-gradient(circle at 0% 90%,rgba(31,90,63,.55) 0 120px,transparent 121px),var(--pine)}
 .bar,.hero,.strip{position:relative;z-index:1}
 .hero{display:grid;gap:22px;padding:22px 18px 6px;max-width:1100px;margin:0 auto;align-items:center}
 .shot{margin:0;position:relative;border-radius:30px;overflow:hidden;background:var(--pine-3);box-shadow:0 26px 50px rgba(0,0,0,.34);width:min(100%,440px);margin-inline:auto}
@@ -87,6 +86,12 @@ body[data-view=barista] .only-k,body[data-view=stats] .only-k,body[data-view=kla
 .chip{border:2px solid var(--pine);background:transparent;color:var(--pine);padding:9px 15px;border-radius:999px;font-weight:700;font-size:15px;display:inline-flex;align-items:center;gap:8px;transition:background .15s,color .15s,transform .1s}
 .chip:active{transform:scale(.96)}
 .chip[aria-pressed=true]{background:var(--pine);color:var(--butter)}
+.seiz{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--butter);color:var(--pine);border-radius:999px;padding:2px 7px}
+.chip[aria-pressed=true] .seiz{background:var(--butter);color:var(--pine)}
+.syn{display:flex;align-items:center;gap:8px;font-size:15px}
+.swatches{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.sw{width:32px;height:32px;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1.5px rgba(0,0,0,.3) inset}
+.sw[aria-checked=true]{border-color:var(--butter);outline:2px solid var(--pine);outline-offset:1px}
 .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(0,0,0,.28) inset;flex:none}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.two .chip{justify-content:center;padding:13px;font-size:16px}
 .field{width:100%;border:2px solid var(--pine);background:var(--paper);border-radius:14px;padding:13px 14px;font:600 17px var(--display);color:var(--roast)}
@@ -241,7 +246,7 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 .tiprow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(244,211,94,.18)}.tiprow b{font-size:15px}
 body[data-view=stats]{background:var(--pine);color:var(--paper)}
 body[data-view=stats] .stage{background:var(--pine);border-radius:0}
-body[data-view=stats] .stage::before,body[data-view=stats] .stage::after{display:none}
+
 .st{max-width:1100px;margin:0 auto;padding:6px 18px calc(48px + var(--safe-b));display:grid;gap:18px}
 .st h1{margin:8px 0 0;font-size:clamp(34px,10vw,52px);font-weight:800;letter-spacing:-.05em;line-height:1;color:var(--butter);font-variation-settings:"opsz" 96}
 .st .lead{margin:6px 0 0;color:var(--paper);opacity:.8;font-size:15px}
@@ -269,7 +274,8 @@ body[data-view=stats] .stage::before,body[data-view=stats] .stage::after{display
 .rank{display:flex;flex-direction:column;gap:8px}.rank div{display:flex;align-items:baseline;gap:10px;font-weight:700}
 .rank .n{font:800 28px/1 var(--display);color:var(--butter);width:34px;letter-spacing:-.05em}.rank small{opacity:.75;font-weight:600;font-size:13px}.rank em{margin-left:auto;font-style:normal;font-weight:800;color:var(--butter)}
 .two2{display:grid;gap:18px}
-@media(min-width:760px){.tiles{grid-template-columns:repeat(4,1fr)}.two2{grid-template-columns:1fr 1fr}.top2{display:grid;grid-template-columns:1fr 1fr;gap:18px}}
+.top2{display:grid;gap:18px}
+@media(min-width:760px){.tiles{grid-template-columns:repeat(4,1fr)}.two2{grid-template-columns:1fr 1fr}.top2{grid-template-columns:1fr 1fr}}
 .hist{margin-top:6px}
 .hrow{border-top:1px solid rgba(244,211,94,.18)}
 .hrow>button{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;width:100%;background:none;border:0;color:var(--paper);text-align:left;padding:12px 2px;min-height:48px;font:600 15px var(--display)}
@@ -341,7 +347,9 @@ const DRINKS=[
 const DM=Object.fromEntries(DRINKS.map(d=>[d.n,d]));
 const MILK=["Volle melk","Halfvolle melk","Haver","Geen melk"];
 const MILKTXT={"Volle melk":"volle melk","Halfvolle melk":"halfvolle melk","Haver":"havermelk","Geen melk":"zonder melk"};
-const SYRUP=[["Geen",null],["Pumpkin spice","#E08A2E"],["White mocha","#E6D2B0"],["Hazelnoot","#B98A52"]];
+const SYR_DEF=[{id:"pumpkin",name:"Pumpkin spice",color:"#E08A2E",season:true},{id:"mocha",name:"White mocha",color:"#E6D2B0",season:false},{id:"hazel",name:"Hazelnoot",color:"#B98A52",season:false}];
+const SYR_COL=["#E08A2E","#E6D2B0","#B98A52","#8A4B2A","#C0504D","#7A9A5B","#D9A441","#8E6BA8"];
+const syrList=()=>(S.syrups||SYR_DEF);
 const SUGAR=["Geen","Low","Medium","Extra sweet","Zoetstof"];
 const ST={nieuw:"In de wachtrij",voorstel:"Voorstel van de barista",bezig:"In de maak",klaar:"Klaar",geweigerd:"Niet gelukt"};
 
@@ -354,10 +362,10 @@ function h(tag,props,...kids){const e=document.createElement(tag);
   kids.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(c))});return e}
 
 let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.now().toString(36);LS("koffie-dev",uid)}
-const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
+const S={view:["barista","stats"].includes(LS("moose-view"))?LS("moose-view"):"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",cap:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],tips:{},stats:null,hist:{open:false,n:30,sel:"",del:""},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],tips:{},syrups:null,sf:{name:"",color:SYR_COL[0],season:"0"},sirDel:"",stats:null,hist:{open:false,n:30,sel:"",del:""},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -491,8 +499,8 @@ function choose(n){if(isOff("drink",n)){toast(n+" is op");return}const prev=S.f.
   paintHero(prev!==n);paintStrip(false);renderOpts();paintCta()}
 
 /* ---------- opties ---------- */
-function chip(group,val,pressed,on,dot){const g={melk:"milk",siroop:"syrup",suiker:"sugar"}[group],off=!!g&&isOff(g,val);
-  return h("button",{class:"chip"+(off?" off":""),"aria-pressed":pressed,disabled:off,"data-k":group+":"+val,onclick:on},dot?h("i",{class:"dot",style:"background:"+dot}):null,val,off?h("em",{},"op"):null)}
+function chip(group,val,pressed,on,dot,season){const g={melk:"milk",siroop:"syrup",suiker:"sugar"}[group],off=!!g&&isOff(g,val);
+  return h("button",{class:"chip"+(off?" off":""),"aria-pressed":pressed,disabled:off,"data-k":group+":"+val,onclick:on},dot?h("i",{class:"dot",style:"background:"+dot}):null,val,season?h("small",{class:"seiz"},"Seizoen"):null,off?h("em",{},"op"):null)}
 function renderOpts(){
   const f=S.f,ae=document.activeElement,k=ae&&ae.dataset&&ae.dataset.k,keepId=ae&&ae.tagName==="INPUT"&&ae.closest("#opts")?ae.id:"",selS=keepId?ae.selectionStart:0,selE=keepId?ae.selectionEnd:0,box=$("#opts"),g=(t,...c)=>h("div",{class:"grp"},h("h3",{},t),...c);
   const set=(key,v)=>()=>{f[key]=v;renderOpts();paintHero(false);paintCta()};
@@ -505,7 +513,7 @@ function renderOpts(){
         h("span",{},c.name),capSub(c)?h("small",{},capSub(c)):null,out?h("em",{},"op"):few?h("em",{},"te weinig"):null)}))):null,
     g("Enkel of dubbel",h("div",{class:"two"},chip("sterkte","Enkel",!f.dbl,set("dbl",false)),chip("sterkte","Dubbel",f.dbl,set("dbl",true)))),
     f.drink==="Espresso"?null:g("Melk",h("div",{class:"chips"},MILK.map(m=>chip("melk",m,f.milk===m,set("milk",m))))),
-    g("Siroop",h("div",{class:"chips"},SYRUP.map(([s,c])=>chip("siroop",s,f.syrup===s,set("syrup",s),c))),
+    g("Siroop",h("div",{class:"chips"},[chip("siroop","Geen",f.syrup==="Geen",set("syrup","Geen"))].concat(syrList().map(x=>chip("siroop",x.name,f.syrup===x.name,set("syrup",x.name),x.color,x.season)))),
       tipFor(f)?h("div",{class:"tip",role:"note"},h("span",{},"Tip: "+tipFor(f)+" past goed bij een "+f.drink.toLowerCase()+"."),h("button",{class:"btn",onclick:()=>{f.syrup=tipFor(f);renderOpts();paintHero(false);paintCta()}},"Probeer")):null),
     g("Suiker",h("div",{class:"chips"},SUGAR.map(s=>chip("suiker",s,f.sugar===s,set("sugar",s))))),
     g("Opmerking",h("input",{type:"text",id:"note",class:"field",value:f.note,placeholder:"Extra heet, weinig schuim…","aria-label":"Opmerking voor de barista",oninput:e=>{f.note=e.target.value}})));
@@ -651,17 +659,31 @@ function capsPanel(){const f=S.cf,list=S.caps.list;
         h("input",{type:"number",id:"cfa",class:"field",value:f.n,placeholder:"Aantal",min:"0",max:"9999",inputmode:"numeric","aria-label":"Aantal capsules",oninput:e=>{f.n=e.target.value}}),
         capSel(f.str,STR_OPTS,v=>{f.str=v},"Sterkte"),capSel(f.sys,SYS_OPTS,v=>{f.sys=v},"Systeem"),capSel(f.deca,DECA_OPTS,v=>{f.deca=v},"Cafeïne"),
         h("button",{class:"stk",onclick:()=>{if(!f.name.trim()||f.n===""){toast("Vul een naam en een aantal in");return}capsOp({add:{name:f.name,n:f.n,str:f.str===""?0:+f.str,sys:f.sys,deca:f.deca==="1"}},()=>{S.cf={name:"",n:"",str:"",sys:"",deca:"0"};renderBarista()})}},"Toevoegen"))))}
+function syrOp(body,after){return api("PATCH","/api/syrups",body).then(()=>{if(after)after();return poll()}).catch(e=>toast(e.message))}
+function syrupPanel(){const f=S.sf,list=syrList();
+  return h("div",{class:"caps"},h("h3",{},"Siropen"),
+    h("p",{class:"hint"},"Kies welke siropen gasten kunnen krijgen. Met het Seizoen-label krijgt een siroop een badge, handig voor tijdelijke smaken."),
+    list.map(x=>h("div",{class:"tiprow"},
+      h("b",{class:"syn"},h("i",{class:"dot",style:"background:"+x.color}),x.name,x.season?h("small",{class:"seiz"},"Seizoen"):null),
+      h("div",{class:"cctl"},capSel(x.season?"1":"0",[["0","Standaard"],["1","Seizoen"]],v=>syrOp({set:{id:x.id,season:v==="1"}}),"Seizoenlabel van "+x.name),
+        S.sirDel===x.id?[h("button",{class:"stk",style:"background:var(--tomato);border-color:var(--tomato);color:#fff",onclick:()=>{S.sirDel="";syrOp({del:x.id})}},"Zeker wissen?"),h("button",{class:"stk",onclick:()=>{S.sirDel="";renderBarista()}},"Nee")]:h("button",{class:"stk",onclick:()=>{S.sirDel=x.id;renderBarista()}},"Verwijder")))),
+    list.length?null:h("p",{class:"hint"},"Geen siropen. Gasten kiezen dan altijd zonder."),
+    h("div",{class:"capadd"},h("h4",{},"Siroop toevoegen"),
+      h("div",{class:"cctl"},h("input",{type:"text",id:"sfn",class:"field",value:f.name,placeholder:"Naam, bijv. Karamel",maxlength:"30","aria-label":"Naam van de siroop",oninput:e=>{f.name=e.target.value}}),
+        capSel(f.season,[["0","Standaard"],["1","Seizoen"]],v=>{f.season=v},"Seizoenlabel")),
+      h("div",{class:"swatches",role:"radiogroup","aria-label":"Kleur"},SYR_COL.map(c=>h("button",{class:"sw","aria-checked":f.color===c,role:"radio","aria-label":"Kleur "+c,style:"background:"+c,onclick:()=>{f.color=c;renderBarista()}}))),
+      h("div",{class:"cctl"},h("button",{class:"stk",onclick:()=>{if(!f.name.trim()){toast("Geef de siroop een naam");return}syrOp({add:{name:f.name,color:f.color,season:f.season==="1"}},()=>{S.sf={name:"",color:SYR_COL[0],season:"0"};renderBarista()})}},"Toevoegen"))))}
 function tipsPanel(){
-  const opts=[["","Geen suggestie"]].concat(SYRUP.filter(x=>x[1]).map(x=>[x[0],x[0]]));
+  const opts=[["","Geen suggestie"]].concat(syrList().map(x=>[x.name,x.name]));
   return h("div",{class:"caps"},h("h3",{},"Siroopsuggesties"),
     h("p",{class:"hint"},"Bij het bestellen krijgt de gast een tip met een siroop die goed past. Per capsule kun je de tips uitzetten, bijvoorbeeld bij een sterke ristretto."),
     DRINKS.map(d=>h("div",{class:"tiprow"},h("b",{},d.n),capSel(S.tips[d.n]||"",opts,v=>api("PATCH","/api/tips",{drink:d.n,syrup:v}).then(poll).catch(e=>toast(e.message)),"Suggestie bij "+d.n))))}
 function stockPanel(){
   const grp=(t,items)=>[h("h3",{},t),h("div",{class:"stkrow"},items.map(([label,key])=>{const o=S.off.includes(key);
     return h("button",{class:"stk","aria-pressed":o,onclick:()=>toggleOff(key)},h("span",{},label),o?h("em",{},"op"):null)}))];
-  return h("section",{class:"stock","aria-label":"Voorraad"},h("h2",{},"Voorraad"),capsPanel(),tipsPanel(),h("p",{class:"hint"},"Tik aan wat op is. Klanten kunnen het dan niet meer kiezen."),
+  return h("section",{class:"stock","aria-label":"Voorraad"},h("h2",{},"Voorraad"),capsPanel(),syrupPanel(),tipsPanel(),h("p",{class:"hint"},"Tik aan wat op is. Klanten kunnen het dan niet meer kiezen."),
     grp("Drankjes",DRINKS.map(d=>[d.n,"drink:"+d.n])),grp("Melk",MILK.filter(m=>m!=="Geen melk").map(m=>[m,"milk:"+m])),
-    grp("Siroop",SYRUP.filter(x=>x[1]).map(x=>[x[0],"syrup:"+x[0]])),grp("Suiker",[["Suiker","sugar:Suiker"],["Zoetstof","sugar:Zoetstof"]]))}
+    grp("Siroop",syrList().map(x=>[x.name,"syrup:"+x.name])),grp("Suiker",[["Suiker","sugar:Suiker"],["Zoetstof","sugar:Zoetstof"]]))}
 function renderBarista(){
   if(S.needPin&&!S.pinOk)return renderPin();
   const el=$("#barista"),arr=S.orders.filter(o=>now()-o.createdAt<12*36e5&&o.status!=="weg");
@@ -792,7 +814,7 @@ async function poll(){
   try{const r=await fetch("/api/orders",{cache:"no-store"});if(!r.ok)throw new Error(r.status);const j=await r.json();
     S.skew=j.now-Date.now();S.needPin=!!j.pin;S.pushAvail=!!j.push;S.prefix=j.prefix||"";S.ntfy=j.ntfy||S.ntfy;if(!S.needPin)S.pinOk=true;
     if(S.needPin&&!S.pinOk&&!S.pinChecking&&LS("moose-pin")){S.pinChecking=true;api("POST","/api/pin",{pin:LS("moose-pin")}).then(()=>{S.pinOk=true;if(S.view==="barista")renderBarista()}).catch(()=>{}).finally(()=>{S.pinChecking=false})}
-    S.caps=j.caps&&Array.isArray(j.caps.list)?j.caps:{list:[]};S.tips=j.tips||{};const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps,S.tips]);
+    S.caps=j.caps&&Array.isArray(j.caps.list)?j.caps:{list:[]};S.tips=j.tips||{};S.syrups=Array.isArray(j.syrups)?j.syrups:SYR_DEF;if(S.f.syrup!=="Geen"&&!S.syrups.some(x=>x.name===S.f.syrup))S.f.syrup="Geen";const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps,S.tips,S.syrups]);
     if(S.pushAvail&&!S.push.checked)pushState();
     if(ko!==lastOff){lastOff=ko;S.off=j.off||[];fixSel();const typing=isTyping();paintHero(false);paintStrip(false);renderOpts();paintCta();paintNotif();if(S.view==="barista"&&!typing)renderBarista()}
     if(!S.online){S.online=true;$("#off").hidden=true}
