@@ -60,7 +60,7 @@ body[data-view=barista] .only-k,body[data-view=klant] .only-b{display:none!impor
 .quote .qm{font:800 84px/.7 var(--display);color:var(--butter);flex:none;height:44px;letter-spacing:-.05em}
 .quote div{min-width:0;display:flex;flex-direction:column;gap:6px}
 .quote small{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--butter);opacity:.85}
-.quote p{margin:0;font-size:clamp(21px,6vw,28px);font-weight:700;letter-spacing:-.035em;line-height:1.15;color:var(--paper);font-variation-settings:"opsz" 48;text-wrap:balance;animation:qin .5s ease-out}
+.quote p{margin:0;min-height:3.45em;font-size:clamp(21px,6vw,28px);font-weight:700;letter-spacing:-.035em;line-height:1.15;color:var(--paper);font-variation-settings:"opsz" 48;text-wrap:balance;animation:qin .5s ease-out}
 @keyframes qin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .quote button{align-self:flex-start;border:2px solid rgba(244,211,94,.45);background:none;color:var(--butter);border-radius:999px;padding:6px 14px;font:700 13px var(--display);min-height:36px}
 @media(min-width:760px){.hero{grid-template-columns:minmax(0,440px) 1fr;gap:48px;padding-top:30px}.shot{margin:0}.quote p{font-size:38px}.quote .qm{font-size:110px;height:58px}}
@@ -68,10 +68,10 @@ body[data-view=barista] .only-k,body[data-view=klant] .only-b{display:none!impor
 
 /* ---------- drankkeuze ---------- */
 .strip{margin-top:12px;padding:6px 0 30px}
-.track{overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.track{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .track::-webkit-scrollbar{display:none}
 .reel{display:flex;gap:10px;padding:10px 18px 4px;width:max-content;margin:0 auto}
-.frame{flex:none;scroll-snap-align:center;width:84px;background:none;border:0;padding:0;text-align:center;color:var(--paper)}
+.frame{flex:none;width:84px;background:none;border:0;padding:0;text-align:center;color:var(--paper)}
 .frame .ph{display:block;position:relative;width:70px;height:70px;margin:0 auto;border-radius:50%;overflow:hidden;opacity:.7;box-shadow:0 0 0 3px rgba(247,244,234,.16);transition:opacity .2s,transform .2s,box-shadow .2s}
 .frame .ph img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block}
 .frame small{display:inline-block;margin-top:10px;font-size:13px;font-weight:700;opacity:.8;padding:3px 9px;border-radius:999px;line-height:1.2}
@@ -435,7 +435,12 @@ function paintHero(anim){
 function buildStrip(){const r=$("#reel");
   DRINKS.forEach((d,i)=>r.append(h("button",{class:"frame",role:"radio","aria-checked":"false","data-n":d.n,onclick:()=>choose(d.n)},
     h("span",{class:"ph"},img(d.n,{loading:"lazy"})),h("small",{},d.n))))}
-function paintStrip(scroll){document.querySelectorAll(".frame").forEach(b=>{const on=b.dataset.n===S.f.drink,o=isOff("drink",b.dataset.n);b.setAttribute("aria-checked",on);b.classList.toggle("off",o);b.setAttribute("aria-disabled",o);if(on&&scroll)b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})})}
+// De balk blijft staan. Alleen als het gekozen drankje (deels) buiten beeld valt, schuift hij net genoeg op.
+function reveal(b){const t=b.closest(".track"),tr=t.getBoundingClientRect(),br=b.getBoundingClientRect(),m=14;let d=0;
+  if((Math.min(br.right,tr.right)-Math.max(br.left,tr.left))/br.width>=.75)return;
+  if(br.left<tr.left+m)d=br.left-tr.left-m;else if(br.right>tr.right-m)d=br.right-tr.right+m;
+  if(d)t.scrollBy({left:d,behavior:"smooth"})}
+function paintStrip(scroll){document.querySelectorAll(".frame").forEach(b=>{const on=b.dataset.n===S.f.drink,o=isOff("drink",b.dataset.n);b.setAttribute("aria-checked",on);b.classList.toggle("off",o);b.setAttribute("aria-disabled",o);if(on&&scroll)reveal(b)})}
 function choose(n){if(isOff("drink",n)){toast(n+" is op");return}const prev=S.f.drink;S.f.drink=n;const d=DM[n];if(prev!==n)nextQuote();
   if(!d.milk)S.f.milk="Geen melk";else if(S.f.milk==="Geen melk"&&n!=="Americano")S.f.milk="Volle melk";
   paintHero(prev!==n);paintStrip(true);renderOpts();paintCta()}
