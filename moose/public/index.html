@@ -98,6 +98,8 @@ body[data-view=barista] .only-k,body[data-view=stats] .only-k,body[data-view=kla
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 .shut{background:var(--butter);color:var(--pine);border-radius:22px;padding:18px 20px;display:flex;gap:14px;align-items:center;margin:14px 0 16px;box-shadow:0 6px 0 var(--pine-3)}
 .shut[hidden]{display:none}
+body.closed .hero,body.closed .strip,body.closed #opts,body.closed #cta{display:none}
+body.closed{padding-bottom:0}
 .shut svg{width:70px;height:58px;color:var(--pine);--hole:var(--butter);flex:none}
 .shut b{display:block;font:800 21px/1.15 var(--display);letter-spacing:-.02em;margin-bottom:4px}
 .shut p{margin:0;font-weight:600;font-size:15px}
@@ -579,7 +581,7 @@ function renderOpts(){
   if(keepId){const el=document.getElementById(keepId);if(el){el.focus({preventScroll:true});try{el.setSelectionRange(selS,selE)}catch(e){}}}
 }
 const shopShut=()=>S.off.includes("shop:closed");
-function paintShut(){const e=$("#shut"),c=shopShut();e.hidden=!c;if(!c){e.replaceChildren();return}
+function paintShut(){const e=$("#shut"),c=shopShut();document.body.classList.toggle("closed",c);e.hidden=!c;if(!c){e.replaceChildren();return}
   if(e.dataset.on==="1")return;e.dataset.on="1";e.replaceChildren(mooseSvg(),h("div",{},h("b",{},"Ons winkeltje is gesloten"),h("p",{},"Nog even geduld, onze moose is onderweg!")))}
 function paintCta(){
   const f=S.f;if(!shopShut())$("#shut").dataset.on="";paintShut();$("#cta").replaceChildren(h("div",{class:"cta-in"},
@@ -670,7 +672,7 @@ function paintNotif(){const sl=slug(S.f.name),box=$("#notif"),kids=[pushCard("kl
       h("div",{class:"topic"},h("code",{},topic),h("button",{class:"btn",onclick:()=>{try{navigator.clipboard.writeText(topic).then(()=>toast("Gekopieerd"),()=>toast("Kopiëren lukte niet"))}catch(e){toast("Kopiëren lukte niet")}}},"Kopieer"))))}
   fill(box,...kids)}
 function renderOrders(){const list=mine(),box=$("#orders");
-  fill(box,h("h2",{},"Jouw bestellingen"),list.length?list.map(orderCard):h("div",{class:"empty"},"Nog niets besteld. Kies een drankje en druk op Bestel."));paintNotif()}
+  fill(box,h("h2",{},"Jouw bestellingen"),list.length?list.map(orderCard):h("div",{class:"empty"},(shopShut()?"Nog niets besteld.":"Nog niets besteld. Kies een drankje en druk op Bestel.")));paintNotif()}
 
 /* ---------- barista ---------- */
 function job(o){
