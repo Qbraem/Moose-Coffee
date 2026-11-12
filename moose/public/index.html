@@ -164,6 +164,14 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 .rcp b{font:400 12px var(--mono);color:var(--butter);padding-top:2px;letter-spacing:.04em}
 .rcp span:not(.lbl){overflow-wrap:anywhere}
 .rcpfoot{margin:18px 0 0;color:#93A995;font-size:13px;line-height:1.4}
+.pcard{margin-top:14px;padding:12px 14px;border-radius:14px;display:flex;gap:10px 12px;align-items:center;flex-wrap:wrap}
+.pcard p{margin:0;flex:1 1 210px;font-size:14px;line-height:1.4}
+#notif .pcard{background:var(--paper);color:var(--pine);margin:0 0 12px;border:2px solid rgba(23,64,46,.14)}
+#notif .card{background:var(--paper);border:2px solid rgba(23,64,46,.14)}
+#barista .pcard{background:rgba(255,255,255,.07);color:var(--paper)}
+.pcard .btn{min-height:44px}
+#barista .pcard .btn{border-color:var(--butter);background:var(--butter);color:var(--pine)}
+#barista .pcard .btn.d,#barista .pcard .btn.ghost{background:transparent;color:var(--paper);border-color:rgba(255,255,255,.3)}
 /* ---------- op / uitverkocht ---------- */
 .frame.off .ph{opacity:.28;filter:grayscale(1)}.frame.off small{opacity:.5;text-decoration:line-through}
 .chip.off{opacity:.45;border-style:dashed;text-decoration:line-through;cursor:not-allowed}
@@ -262,7 +270,7 @@ let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.n
 const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -317,6 +325,46 @@ async function api(m,u,b){const r=await fetch(u,{method:m,headers:{"Content-Type
     throw new Error((await r.json().catch(()=>({}))).error||r.status)}return r.json()}
 function upd(id,d){api("PATCH","/api/orders/"+id,d).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
 let tt;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("on"),3200)}
+
+/* ---------- webmeldingen ---------- */
+const PUSH_OK="serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const STANDALONE=!!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));
+if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
+const u8=b=>{const r=(b+"=".repeat((4-b.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/");return Uint8Array.from(atob(r),c=>c.charCodeAt(0))};
+const sameKey=(a,b)=>{if(!a||!b||a.byteLength!==b.length)return false;const x=new Uint8Array(a);return x.every((v,i)=>v===b[i])};
+function repaintPush(){paintNotif();if(S.view==="barista"&&!(document.activeElement&&document.activeElement.tagName==="INPUT"))renderBarista()}
+async function pushState(){S.push.checked=true;
+  if(PUSH_OK){try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+    S.push.on.klant=!!sub&&Notification.permission==="granted"&&LS("moose-push-klant")==="1";S.push.on.barista=!!sub&&Notification.permission==="granted"&&LS("moose-push-barista")==="1"}catch(e){}}
+  repaintPush()}
+async function pushOn(role){S.push.busy=true;repaintPush();
+  try{const perm=await Notification.requestPermission();
+    if(perm!=="granted")throw new Error("Meldingen zijn niet toegestaan. Zet ze aan bij Instellingen, Meldingen, Moose.");
+    const reg=await navigator.serviceWorker.ready,{key}=await (await fetch("/api/push/key")).json(),want=u8(key);
+    let sub=await reg.pushManager.getSubscription();
+    if(sub&&!sameKey(sub.options&&sub.options.applicationServerKey,want)){await sub.unsubscribe();sub=null}
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:want});
+    await api("POST","/api/push/subscribe",{sub:sub.toJSON(),role,by:uid});
+    LS("moose-push-"+role,"1");toast("Meldingen staan aan")}
+  catch(e){toast(e.message||"Aanzetten mislukt")}
+  S.push.busy=false;await pushState()}
+async function pushOff(role){
+  try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+    if(sub){const r=await api("POST","/api/push/unsubscribe",{endpoint:sub.endpoint,role});if(!r.roles.length)await sub.unsubscribe()}
+    LS("moose-push-"+role,"0")}catch(e){toast("Uitzetten mislukt")}
+  await pushState()}
+function pushTest(){api("POST","/api/push/test",{}).then(()=>toast("Testmelding verstuurd")).catch(e=>toast(e.message))}
+function pushCard(role){
+  if(!S.pushAvail)return null;
+  const bar=role==="barista",on=S.push.on[role];let txt,btns=[];
+  if(!PUSH_OK)txt=IOS&&!STANDALONE?"Wil je meldingen? Open Moose via je beginscherm: tik in Safari op Deel en kies “Zet op beginscherm”.":"Deze browser kan geen meldingen tonen.";
+  else if(on){txt=bar?"Je krijgt een melding bij elke nieuwe bestelling.":"Je krijgt een melding als je koffie klaar is.";
+    if(bar)btns.push(h("button",{class:"btn d",onclick:pushTest},"Testmelding"));
+    btns.push(h("button",{class:"btn ghost",onclick:()=>pushOff(role)},"Uitzetten"))}
+  else{txt=bar?"Krijg een melding bij nieuwe bestellingen, ook als de app dicht is.":"Krijg een melding als je koffie klaar is, ook als de app dicht is.";
+    btns.push(h("button",{class:"btn",disabled:S.push.busy,onclick:()=>pushOn(role)},bar?"Meldingen aanzetten":"Meld me als hij klaar is"))}
+  return h("div",{class:"pcard"},h("p",{},txt),btns)}
 
 /* ---------- hero en filmstrook ---------- */
 function paintHero(anim){
@@ -386,12 +434,12 @@ function orderCard(o){
     h("button",{class:"btn",onclick:()=>upd(o.id,{status:"weg"})},"Sluiten"),h("button",{class:"btn ghost",onclick:()=>{redo(o);upd(o.id,{status:"weg"})}},"Iets anders kiezen")));
   c.append(b);return c}
 function slug(n){return String(n).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,30)}
-function paintNotif(){const sl=slug(S.f.name),box=$("#notif");
-  if(!S.prefix||!sl){box.replaceChildren();return}
-  const topic=S.prefix+sl,host=S.ntfy.replace(/^https?:\/\//,"");
-  fill(box,h("div",{class:"card"},h("h3",{},"Melding als je koffie klaar is"),
-    h("p",{},"Installeer de gratis app ntfy, kies “Subscribe to topic” en vul dit onderwerp in"+(host!=="ntfy.sh"?" (server: "+host+")":"")+". Gebruik altijd dezelfde naam, want het onderwerp hangt ervan af."),
-    h("div",{class:"topic"},h("code",{},topic),h("button",{class:"btn",onclick:()=>{try{navigator.clipboard.writeText(topic).then(()=>toast("Gekopieerd"),()=>toast("Kopiëren lukte niet"))}catch(e){toast("Kopiëren lukte niet")}}},"Kopieer"))))}
+function paintNotif(){const sl=slug(S.f.name),box=$("#notif"),kids=[pushCard("klant")];
+  if(S.prefix&&sl){const topic=S.prefix+sl,host=S.ntfy.replace(/^https?:\/\//,"");
+    kids.push(h("div",{class:"card"},h("h3",{},"Liever met de app ntfy?"),
+      h("p",{},"Installeer de gratis app ntfy, kies “Subscribe to topic” en vul dit onderwerp in"+(host!=="ntfy.sh"?" (server: "+host+")":"")+". Gebruik altijd dezelfde naam, want het onderwerp hangt ervan af."),
+      h("div",{class:"topic"},h("code",{},topic),h("button",{class:"btn",onclick:()=>{try{navigator.clipboard.writeText(topic).then(()=>toast("Gekopieerd"),()=>toast("Kopiëren lukte niet"))}catch(e){toast("Kopiëren lukte niet")}}},"Kopieer"))))}
+  fill(box,...kids)}
 function renderOrders(){const list=mine(),box=$("#orders");
   fill(box,h("h2",{},"Jouw bestellingen"),list.length?list.map(orderCard):h("div",{class:"empty"},"Nog niets besteld. Kies een drankje en druk op Bestel."));paintNotif()}
 
@@ -441,6 +489,7 @@ function renderBarista(){
   const sum=wait.length+busy.length?wait.length+" wachtend, "+busy.length+" in de maak":"Alles is gemaakt";
   fill(el,
     h("div",{class:"qhead"},h("div",{},h("h1",{},"Barista"),h("p",{},sum)),h("button",{class:"top-btn",id:"snd","aria-pressed":S.sound,onclick:()=>{S.sound=!S.sound;LS("moose-sound",S.sound?"1":"0");if(S.sound)beep();renderBarista()}},S.sound?"Geluid aan":"Geluid uit")),
+    pushCard("barista"),
     busy.length?[h("h2",{},"In de maak"),h("div",{class:"cols"},busy.map(job))]:null,
     wait.length?[h("h2",{},"Wachtend"),h("div",{class:"cols"},wait.map(job))]:null,
     !busy.length&&!wait.length?h("div",{class:"qempty"},(()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 120 100");s.innerHTML='<use href="#moose"/>';return s})(),h("p",{},"Geen bestellingen. Tijd voor een eigen espresso?")):null,
@@ -467,9 +516,10 @@ function onData(prev){
 }
 async function poll(){
   try{const r=await fetch("/api/orders",{cache:"no-store"});if(!r.ok)throw new Error(r.status);const j=await r.json();
-    S.skew=j.now-Date.now();S.needPin=!!j.pin;S.prefix=j.prefix||"";S.ntfy=j.ntfy||S.ntfy;if(!S.needPin)S.pinOk=true;
+    S.skew=j.now-Date.now();S.needPin=!!j.pin;S.pushAvail=!!j.push;S.prefix=j.prefix||"";S.ntfy=j.ntfy||S.ntfy;if(!S.needPin)S.pinOk=true;
     if(S.needPin&&!S.pinOk&&!S.pinChecking&&LS("moose-pin")){S.pinChecking=true;api("POST","/api/pin",{pin:LS("moose-pin")}).then(()=>{S.pinOk=true;if(S.view==="barista")renderBarista()}).catch(()=>{}).finally(()=>{S.pinChecking=false})}
-    const ko=JSON.stringify([j.off||[],S.prefix,S.needPin]);
+    const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail]);
+    if(S.pushAvail&&!S.push.checked)pushState();
     if(ko!==lastOff){lastOff=ko;S.off=j.off||[];fixSel();const a=document.activeElement,typing=a&&a.tagName==="INPUT";paintHero(false);paintStrip(false);renderOpts();paintCta();paintNotif();if(S.view==="barista"&&!typing)renderBarista()}
     if(!S.online){S.online=true;$("#off").hidden=true}
     const t=JSON.stringify(j.orders);if(t!==last){last=t;const prev=S.orders;S.orders=j.orders;onData(prev)}}

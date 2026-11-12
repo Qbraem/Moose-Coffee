@@ -1,6 +1,7 @@
 // Moose: kleine koffie-server zonder dependencies. Start met: node server.js
 //   BARISTA_PIN=123456   code voor de baristakant (zonder deze variabele is er geen code)
 //   NTFY_TOPIC=geheim    meldingen naar de telefoon via ntfy (zonder deze variabele geen meldingen)
+//   (webmeldingen op de telefoon staan altijd aan; de sleutels maakt de server zelf)
 //   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN   bewaart alles online (nodig op gratis hosting met wisselend schijfgeheugen)
 const http = require("http"), fs = require("fs"), path = require("path"), os = require("os"), crypto = require("crypto");
 const PORT = process.env.PORT || 3000;
@@ -13,29 +14,38 @@ const TYPES = {
   ".json": "application/json", ".webmanifest": "application/manifest+json"
 };
 
-let orders = [], off = [];
+let orders = [], off = [], subs = [], vapid = null;
 const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, ""), REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const REDIS = !!(REDIS_URL && REDIS_TOKEN), KEY = "moose:state";
 const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization: "Bearer " + REDIS_TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(cmd) })
   .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || "HTTP " + r.status); return j.result; });
-async function load() {
+async function loadState() {
   if (REDIS) {
-    try {
-      const raw = await redis(["GET", KEY]), st = raw ? JSON.parse(raw) : {};
-      orders = Array.isArray(st.orders) ? st.orders : []; off = Array.isArray(st.off) ? st.off : [];
-      return console.log("  Opslag: online (Upstash), " + orders.length + " bestellingen geladen");
-    } catch (e) { console.log("  Opslag: Upstash niet bereikbaar (" + e.message + "), ik start leeg"); return; }
+    // Start nooit leeg als Upstash even niet antwoordt: dan zou de eerste bewaring alles overschrijven. Liever opnieuw proberen en anders stoppen (de host start de dienst dan opnieuw).
+    for (let i = 1; ; i++) {
+      try {
+        const raw = await redis(["GET", KEY]), st = raw ? JSON.parse(raw) : {};
+        orders = Array.isArray(st.orders) ? st.orders : []; off = Array.isArray(st.off) ? st.off : [];
+        subs = Array.isArray(st.subs) ? st.subs : []; vapid = st.vapid || null;
+        return console.log("  Opslag: online (Upstash), " + orders.length + " bestellingen geladen");
+      } catch (e) {
+        console.log("  Opslag: Upstash niet bereikbaar (" + e.message + "), poging " + i + " van 4");
+        if (i >= 4) { console.log("  Ik stop liever dan met een lege opslag te starten."); process.exit(1); }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
   }
   try { orders = JSON.parse(fs.readFileSync(DB, "utf8")); } catch (e) {}
-  try { off = JSON.parse(fs.readFileSync(CFG, "utf8")).off || []; } catch (e) {}
+  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; } catch (e) {}
 }
+async function load() { await loadState(); ensureVapid(); }
 function writer(file, get) {
   let t = null;
   return () => { clearTimeout(t); t = setTimeout(() => fs.writeFile(file + ".tmp", JSON.stringify(get()), e => { if (!e) fs.rename(file + ".tmp", file, () => {}); }), 100); };
 }
 let rt = null;
-const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
-const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off }));
+const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
+const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid }));
 const save = () => { if (REDIS) saveRemote(); else saveLocal(); }, saveCfg = () => { if (REDIS) saveRemote(); else saveCfgLocal(); };
 
 // ---------- meldingen via ntfy ----------
@@ -53,9 +63,61 @@ function push(topic, title, message) {
   }).then(r => { if (!r.ok) console.log("Melding mislukt: HTTP " + r.status); })
     .catch(e => console.log("Melding mislukt: " + e.message));
 }
-const notify = (title, message) => push(NTFY_TOPIC, title, message);
-const notifyClient = (o, title, message) => { const sl = slug(o.name); if (CLIENT_PREFIX && sl) push(CLIENT_PREFIX + sl, title, message); };
+// Elke melding gaat via twee wegen: webmelding op de telefoon (als iemand die aanzette) en ntfy (als je dat instelde).
+const notify = (title, message, tag) => {
+  push(NTFY_TOPIC, title, message);
+  pushTo(x => x.roles.includes("barista"), { title, body: message, tag: tag || "moose-barista" });
+};
+const notifyClient = (o, title, message) => {
+  const sl = slug(o.name); if (CLIENT_PREFIX && sl) push(CLIENT_PREFIX + sl, title, message);
+  if (o.by) pushTo(x => x.roles.includes("klant") && x.by === o.by, { title, body: message, tag: "koffie-" + o.id });
+};
 const label = o => (o.dbl ? "dubbele " : "") + o.drink.toLowerCase();
+
+// ---------- webmeldingen (Web Push, zonder extra pakketten) ----------
+const SUBJECT = process.env.VAPID_SUBJECT || "https://" + (process.env.RENDER_EXTERNAL_HOSTNAME || "moose.example");
+function ensureVapid() {
+  if (vapid && vapid.x && vapid.y && vapid.d) return;
+  const j = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ format: "jwk" });
+  vapid = { x: j.x, y: j.y, d: j.d }; saveCfg();
+}
+const vapidPub = () => Buffer.concat([Buffer.from([4]), Buffer.from(vapid.x, "base64url"), Buffer.from(vapid.y, "base64url")]).toString("base64url");
+function vapidAuth(endpoint) {
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const head = b64({ typ: "JWT", alg: "ES256" }), body = b64({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: SUBJECT });
+  const key = crypto.createPrivateKey({ key: { kty: "EC", crv: "P-256", x: vapid.x, y: vapid.y, d: vapid.d }, format: "jwk" });
+  const sig = crypto.sign("sha256", Buffer.from(head + "." + body), { key, dsaEncoding: "ieee-p1363" }).toString("base64url");
+  return "vapid t=" + head + "." + body + "." + sig + ", k=" + vapidPub();
+}
+// RFC 8291 (aes128gcm). "fixed" dient alleen voor tests.
+function encryptPush(sub, text, fixed) {
+  const ua = Buffer.from(sub.keys.p256dh, "base64url"), auth = Buffer.from(sub.keys.auth, "base64url");
+  const ecdh = crypto.createECDH("prime256v1");
+  if (fixed && fixed.asPrivate) ecdh.setPrivateKey(fixed.asPrivate); else ecdh.generateKeys();
+  const asPub = ecdh.getPublicKey(), secret = ecdh.computeSecret(ua), salt = (fixed && fixed.salt) || crypto.randomBytes(16);
+  const kdf = (ikm, sa, info, n) => Buffer.from(crypto.hkdfSync("sha256", ikm, sa, Buffer.from(info, "latin1"), n));
+  const ikm = Buffer.from(crypto.hkdfSync("sha256", secret, auth, Buffer.concat([Buffer.from("WebPush: info\0"), ua, asPub]), 32));
+  const cek = kdf(ikm, salt, "Content-Encoding: aes128gcm\0", 16), nonce = kdf(ikm, salt, "Content-Encoding: nonce\0", 12);
+  const c = crypto.createCipheriv("aes-128-gcm", cek, nonce);
+  const enc = Buffer.concat([c.update(Buffer.concat([Buffer.from(text), Buffer.from([2])])), c.final(), c.getAuthTag()]);
+  const hdr = Buffer.alloc(21); salt.copy(hdr, 0); hdr.writeUInt32BE(4096, 16); hdr[20] = 65;
+  return Buffer.concat([hdr, asPub, enc]);
+}
+// Alleen echte push-diensten: anders kon iemand de server naar een intern adres laten sturen.
+const PUSH_HOST = /(^|\.)(push\.apple\.com|googleapis\.com|push\.services\.mozilla\.com|mozaws\.net|notify\.windows\.com)$/;
+const endpointOk = u => { try { const x = new URL(u); return process.env.PUSH_ALLOW_ANY === "1" || (x.protocol === "https:" && PUSH_HOST.test(x.hostname)); } catch (e) { return false; } };
+async function sendWebPush(sub, payload) {
+  const r = await fetch(sub.endpoint, { method: "POST", body: encryptPush(sub, JSON.stringify(payload)), headers: {
+    Authorization: vapidAuth(sub.endpoint), "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", TTL: "3600", Urgency: "high" } });
+  return r.status;
+}
+function pushTo(filter, payload) {
+  for (const sb of subs.filter(filter))
+    sendWebPush(sb, payload).then(st => {
+      if (st === 404 || st === 410) { subs = subs.filter(x => x !== sb); saveCfg(); }
+      else if (st >= 400) console.log("Webmelding mislukt: HTTP " + st);
+    }).catch(e => console.log("Webmelding mislukt: " + e.message));
+}
 
 // ---------- code voor de barista ----------
 const fails = new Map();
@@ -92,17 +154,55 @@ const readBody = req => new Promise((ok, no) => {
   req.on("end", () => { try { ok(JSON.parse(d || "{}")); } catch (e) { no(e); } });
 });
 
+// Bij afsluiten (bijvoorbeeld tijdens een nieuwe uitrol) eerst alles wegschrijven, zodat de laatste wijziging niet verloren gaat.
+async function flushAndExit() {
+  try {
+    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid })]); }
+    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid })); }
+  } catch (e) { console.log("Wegschrijven bij afsluiten mislukt: " + e.message); }
+  process.exit(0);
+}
+process.on("SIGTERM", flushAndExit); process.on("SIGINT", flushAndExit);
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   try {
     if (url.pathname === "/healthz") return send(res, 200, { ok: true });
     if (url.pathname === "/api/orders" && req.method === "GET")
-      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER });
+      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true });
     if (url.pathname === "/api/pin" && req.method === "POST") {
       const b = await readBody(req);
       if (blocked(req)) return deny(res, req);
       if (!PIN || same(String(b.pin || ""), PIN)) return send(res, 200, { ok: true });
       failed(req); return deny(res, req);
+    }
+    if (url.pathname === "/api/push/key" && req.method === "GET") return send(res, 200, { key: vapidPub() });
+    if (url.pathname === "/api/push/subscribe" && req.method === "POST") {
+      const b = await readBody(req), sub = b.sub || {}, k = sub.keys || {};
+      if (!endpointOk(sub.endpoint) || typeof k.p256dh !== "string" || typeof k.auth !== "string" || Buffer.from(k.p256dh, "base64url").length !== 65 || Buffer.from(k.auth, "base64url").length !== 16)
+        return send(res, 400, { error: "ongeldig abonnement" });
+      const role = b.role === "barista" ? "barista" : "klant";
+      if (role === "barista" && !authed(req)) return deny(res, req);
+      let e = subs.find(x => x.endpoint === sub.endpoint);
+      if (!e) { if (subs.length >= 300) return send(res, 429, { error: "te veel abonnementen" }); e = { endpoint: sub.endpoint, keys: { p256dh: k.p256dh, auth: k.auth }, roles: [], by: "" }; subs.push(e); }
+      e.keys = { p256dh: k.p256dh, auth: k.auth };
+      if (!e.roles.includes(role)) e.roles.push(role);
+      if (role === "klant") e.by = s(b.by, 40);
+      saveCfg();
+      return send(res, 200, { roles: e.roles });
+    }
+    if (url.pathname === "/api/push/unsubscribe" && req.method === "POST") {
+      const b = await readBody(req), e = subs.find(x => x.endpoint === b.endpoint);
+      if (!e) return send(res, 200, { roles: [] });
+      e.roles = e.roles.filter(r => r !== b.role);
+      if (!e.roles.length) subs = subs.filter(x => x !== e);
+      saveCfg();
+      return send(res, 200, { roles: e.roles });
+    }
+    if (url.pathname === "/api/push/test" && req.method === "POST") {
+      if (!authed(req)) return deny(res, req);
+      pushTo(x => x.roles.includes("barista"), { title: "Moose", body: "Meldingen werken. Je krijgt er een bij elke nieuwe bestelling.", tag: "moose-test" });
+      return send(res, 200, { ok: true });
     }
     if (url.pathname === "/api/off" && req.method === "PATCH") {
       if (!authed(req)) return deny(res, req);
@@ -120,7 +220,7 @@ const server = http.createServer(async (req, res) => {
         if (isOff(g, s(v, 30))) return send(res, 409, { error: s(v, 30) + " is op" });
       const o = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), drink: s(b.drink, 30), dbl: !!b.dbl, milk: s(b.milk, 30), syrup: s(b.syrup, 30), sugar: s(b.sugar, 30), note: s(b.note, 200), name, by: s(b.by, 40), status: "nieuw", createdAt: Date.now() };
       orders.unshift(o); orders = orders.slice(0, 200); save();
-      notify("Nieuwe koffie van " + o.name, label(o) + (o.note ? " (" + o.note + ")" : ""));
+      notify("Nieuwe koffie van " + o.name, label(o) + (o.note ? " (" + o.note + ")" : ""), "order-" + o.id);
       return send(res, 201, o);
     }
     const m = url.pathname.match(/^\/api\/orders\/([\w-]+)$/);
@@ -138,7 +238,7 @@ const server = http.createServer(async (req, res) => {
         o.status = b.status;
         if (b.status === "klaar") { o.etaAt = null; o.readyAt = Date.now(); }
       }
-      if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o));
+      if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o), "order-" + o.id);
       if (b.status && b.status !== prev) {
         if (b.status === "klaar") notifyClient(o, "Je koffie is klaar!", label(o) + ": kom ’m maar halen.");
         if (b.status === "voorstel") notifyClient(o, "Voorstel van de barista", s(b.reply, 200));

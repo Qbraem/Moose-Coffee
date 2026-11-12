@@ -48,7 +48,17 @@ De computer met de server moet internet hebben. Per melding gaan alleen de naam,
 opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geheim.
 (Zelf hosten kan ook: zet `NTFY_SERVER=https://jouw-server` erbij.)
 
-## Melding voor je gasten
+## Webmeldingen op de telefoon
+Moose kan meldingen sturen naar de telefoon, ook als de app dicht is. Dat vraagt een https-adres (een host zoals Render geeft dat)
+en op iPhone iOS 16.4 of nieuwer met Moose op het beginscherm (Safari, Deel, "Zet op beginscherm"). Er is niets extra te installeren
+en geen instelling op de server: de sleutels maakt de server zelf aan en bewaart ze samen met de bestellingen.
+- **Barista:** op het baristascherm staat een kaart "Meldingen aanzetten". Je krijgt een melding bij elke nieuwe bestelling en als iemand
+  je voorstel aanneemt. Met "Testmelding" controleer je of het werkt. Dit vraagt de code.
+- **Gast:** onder het bestelformulier staat "Meld me als hij klaar is". Je krijgt een melding als je koffie klaar is, bij een voorstel
+  of als het niet lukt. Het is gekoppeld aan het toestel waarmee je bestelde.
+Een telefoon die zich afmeldt of niet meer bestaat, wordt vanzelf uit de lijst gehaald. Meldingen op iOS zijn soms trager dan in een gewone app.
+
+## Melding voor je gasten met ntfy (alternatief)
 Zodra `NTFY_TOPIC` aan staat, krijgt elke gast onder zijn bestelformulier een eigen onderwerp te zien
 (bijvoorbeeld `moose-1a2b3c4d5e-zoe`). Die abonneert zich in de ntfy-app op dat onderwerp en krijgt een
 melding als de koffie klaar is, als jij een voorstel stuurt of als het niet lukt. Het onderwerp hangt af van
