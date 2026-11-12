@@ -199,6 +199,9 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 .stk[aria-pressed=true] em{font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .stk[aria-pressed=true] span{text-decoration:line-through}
 .stk em{font-style:normal;font-size:12px;margin-left:6px}
+.chip.cap{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;line-height:1.2}
+.chip.cap small{font-size:12px;font-weight:500;opacity:.8}
+.chip.cap em{font-style:normal;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .acct{margin-top:18px}
 .acct .card{background:var(--paper);border:2px solid rgba(23,64,46,.14);border-radius:18px;padding:16px 18px;color:var(--pine)}
 .acct h3{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.02em}
@@ -214,13 +217,20 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 .acct .pinrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.acct .pinrow .field{flex:1 1 140px;min-width:0}
 .acct .field{font-size:16px}
 .wait{margin-top:8px;font-size:14px;font-weight:600;color:var(--pine)}
-.caps{margin:14px 0 4px;padding:14px;border:2px solid rgba(244,211,94,.35);border-radius:16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
-.caps.low{border-color:var(--tomato);background:rgba(228,69,42,.14)}
-.caps .n{font:800 34px var(--display);letter-spacing:-.04em;min-width:64px;color:var(--butter)}
-.caps.low .n{color:#ff8a72}
-.caps .stk{padding:8px 16px}
-.caps small{flex:1 1 100%;color:#A9BDA9;font-size:14px}
-.caps.low small{color:#ffb5a5;font-weight:700}
+.caps{margin:14px 0 4px;padding:14px;border:2px solid rgba(244,211,94,.35);border-radius:16px}
+.caps h3{margin:0 0 4px;font-size:18px;color:var(--butter)}
+.caps .hint{margin:0 0 6px}
+.caprow{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid rgba(244,211,94,.18)}
+.caprow.low{background:rgba(228,69,42,.12);margin:0 -8px;padding:12px 8px;border-radius:12px}
+.cn{display:flex;align-items:baseline;gap:10px;flex:1 1 100%}
+.cn b{font-size:17px}.cn .n{font:800 28px var(--display);letter-spacing:-.04em;color:var(--butter)}
+.caprow.low .n{color:#ff8a72}.cn small{color:#ffb5a5;font-weight:700}
+.cctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.caps .field{width:auto;min-width:0;background:#0C1A13;border:2px solid rgba(244,211,94,.35);color:var(--paper);font-size:15px;padding:10px 12px;border-radius:12px;font-weight:600}
+.caps input.field{flex:1 1 150px}.caps input[type=number].field{flex:0 1 96px}
+.caps .stk{padding:8px 14px}
+.capadd h4{margin:14px 0 8px;font-size:13px;color:#A9BDA9;font-weight:600}
+.capline{margin-top:4px;font-size:14px;font-weight:700;color:var(--butter)}
 </style>
 </head>
 <body data-view="klant">
@@ -291,9 +301,9 @@ function h(tag,props,...kids){const e=document.createElement(tag);
 
 let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.now().toString(36);LS("koffie-dev",uid)}
 const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
-  f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",err:false},
+  f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",cap:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],caps:null,acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],caps:{list:[]},cf:{name:"",n:"",str:"",sys:""},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -307,6 +317,7 @@ function spec(o){const p=[];
   else if(DM[o.drink]&&DM[o.drink].milk)p.push("zonder melk");
   if(o.syrup&&o.syrup!=="Geen")p.push(o.syrup.toLowerCase()+" siroop");
   p.push(o.sugar==="Geen"?"geen suiker":o.sugar==="Zoetstof"?"zoetstof":o.sugar==="Extra sweet"?"extra sweet":"suiker: "+String(o.sugar).toLowerCase());
+  const cn=o.capName||(o.cap&&capOf(o.cap)?capOf(o.cap).name:"");if(cn)p.push(cn);
   return p.join(" · ")}
 /* ---------- Nespresso-recepten ---------- */
 // [capsule-maat, ml, afgeleid]. * = Nespresso geeft hier geen eigen maat, afgeleid van een verwant recept.
@@ -336,7 +347,12 @@ const leftTxt=ms=>{const m=Math.ceil(ms/60000);return m>0?"klaar over ± "+m+" m
 
 /* ---------- voorraad ---------- */
 const isOff=(g,v)=>g==="sugar"?(v==="Zoetstof"?S.off.includes("sugar:Zoetstof"):v!=="Geen"&&S.off.includes("sugar:Suiker")):(v!=="Geen"&&v!=="Geen melk"&&S.off.includes(g+":"+v));
+const capOf=id=>S.caps.list.find(c=>c.id===id);
+const capNeed=f=>f.dbl?2:1;
+const capBad=f=>S.caps.list.length>0&&!(capOf(f.cap)&&capOf(f.cap).n>=capNeed(f));
+const capSub=c=>[c.sys,c.str?"sterkte "+c.str:""].filter(Boolean).join(" · ");
 function fixSel(){const f=S.f;
+  if(S.caps.list.length){const c=capOf(f.cap);if(!c||c.n<=0){const a=S.caps.list.find(x=>x.n>0);f.cap=a?a.id:""}}else f.cap="";
   if(isOff("drink",f.drink)){const a=DRINKS.find(d=>!isOff("drink",d.n));if(a){f.drink=a.n;if(!a.milk)f.milk="Geen melk"}}
   if(isOff("milk",f.milk))f.milk=MILK.find(m=>!isOff("milk",m))||"Geen melk";
   if(isOff("syrup",f.syrup))f.syrup="Geen";
@@ -356,7 +372,8 @@ const STANDALONE=!!(navigator.standalone||(window.matchMedia&&matchMedia("(displ
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 const u8=b=>{const r=(b+"=".repeat((4-b.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/");return Uint8Array.from(atob(r),c=>c.charCodeAt(0))};
 const sameKey=(a,b)=>{if(!a||!b||a.byteLength!==b.length)return false;const x=new Uint8Array(a);return x.every((v,i)=>v===b[i])};
-function repaintPush(){paintNotif();if(S.view==="barista"&&!(document.activeElement&&document.activeElement.tagName==="INPUT"))renderBarista()}
+const isTyping=()=>{const a=document.activeElement;return !!a&&(a.tagName==="INPUT"||a.tagName==="SELECT")};
+function repaintPush(){paintNotif();if(S.view==="barista"&&!isTyping())renderBarista()}
 async function pushState(){S.push.checked=true;
   if(PUSH_OK){try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
     S.push.on.klant=!!sub&&Notification.permission==="granted"&&LS("moose-push-klant")==="1";S.push.on.barista=!!sub&&Notification.permission==="granted"&&LS("moose-push-barista")==="1"}catch(e){}}
@@ -416,7 +433,10 @@ function renderOpts(){
     g("Voor wie?",h("input",{type:"text",id:"naam",class:"field"+(f.err?" bad":""),value:f.name,placeholder:"Je naam",autocomplete:"given-name","aria-label":"Je naam (verplicht)","aria-invalid":f.err,
       oninput:e=>{f.name=e.target.value;LS("koffie-naam",f.name);if(f.name.trim()&&f.err){f.err=false;e.target.classList.remove("bad");const x=$("#naamfout");if(x)x.remove();e.target.removeAttribute("aria-invalid")}paintCta();paintNotif()}}),
       f.err?h("div",{class:"err",id:"naamfout",role:"alert"},"Vul eerst je naam in, zodat de barista weet voor wie de koffie is."):null),
-    g("Sterkte",h("div",{class:"two"},chip("sterkte","Enkel",!f.dbl,set("dbl",false)),chip("sterkte","Dubbel",f.dbl,set("dbl",true)))),
+    S.caps.list.length?g("Capsule",h("div",{class:"chips"},S.caps.list.map(c=>{const out=c.n<=0,few=!out&&c.n<capNeed(f);
+      return h("button",{class:"chip cap"+(out||few?" off":""),"aria-pressed":f.cap===c.id,disabled:out||few,"data-k":"capsule:"+c.id,onclick:()=>{f.cap=c.id;renderOpts();paintCta();paintNotif()}},
+        h("span",{},c.name),capSub(c)?h("small",{},capSub(c)):null,out?h("em",{},"op"):few?h("em",{},"te weinig"):null)}))):null,
+    g("Enkel of dubbel",h("div",{class:"two"},chip("sterkte","Enkel",!f.dbl,set("dbl",false)),chip("sterkte","Dubbel",f.dbl,set("dbl",true)))),
     f.drink==="Espresso"?null:g("Melk",h("div",{class:"chips"},MILK.map(m=>chip("melk",m,f.milk===m,set("milk",m))))),
     g("Siroop",h("div",{class:"chips"},SYRUP.map(([s,c])=>chip("siroop",s,f.syrup===s,set("syrup",s),c)))),
     g("Suiker",h("div",{class:"chips"},SUGAR.map(s=>chip("suiker",s,f.sugar===s,set("sugar",s))))),
@@ -427,14 +447,15 @@ function renderOpts(){
 function paintCta(){
   const f=S.f;$("#cta").replaceChildren(h("div",{class:"cta-in"},
     h("div",{class:"cta-t"},h("b",{},(f.name.trim()?f.name.trim()+": ":"")+title(f)),h("span",{},spec(f))),
-    h("button",{class:"go",disabled:isOff("drink",f.drink)||S.caps===0,onclick:order},S.caps===0?"Capsules op":"Bestel")))}
+    h("button",{class:"go",disabled:isOff("drink",f.drink)||capBad(f),onclick:order},S.caps.list.length&&!S.caps.list.some(c=>c.n>0)?"Capsules op":capBad(f)?"Kies een capsule":"Bestel")))}
 async function order(){
   const f=S.f;
   if(!f.name.trim()){f.err=true;renderOpts();const n=$("#naam");if(n){n.focus({preventScroll:true});n.scrollIntoView({behavior:"smooth",block:"center"})}return}
-  try{await api("POST","/api/orders",{name:f.name.trim(),drink:f.drink,dbl:f.dbl,milk:f.drink==="Espresso"?"Geen melk":f.milk,syrup:f.syrup,sugar:f.sugar,note:f.note,by:uid});
+  try{await api("POST","/api/orders",{name:f.name.trim(),drink:f.drink,dbl:f.dbl,milk:f.drink==="Espresso"?"Geen melk":f.milk,syrup:f.syrup,sugar:f.sugar,note:f.note,cap:f.cap,by:uid});
     f.note="";f.err=false;renderOpts();toast("Besteld! De barista ziet het meteen.");loadMe();await poll();$("#orders").scrollIntoView({behavior:"smooth",block:"start"})}
   catch(e){toast("Bestellen mislukt: "+e.message)}}
-function redo(o){Object.assign(S.f,{drink:o.drink,dbl:!!o.dbl,milk:o.milk,syrup:o.syrup,sugar:o.sugar,note:o.note||""});
+function capFrom(o){return (o.capId&&capOf(o.capId)?o.capId:(S.caps.list.find(c=>c.name===o.capName)||{}).id)||S.f.cap}
+function redo(o){Object.assign(S.f,{drink:o.drink,dbl:!!o.dbl,milk:o.milk,syrup:o.syrup,sugar:o.sugar,note:o.note||"",cap:capFrom(o)});
   paintHero(true);paintStrip(true);renderOpts();paintCta();window.scrollTo({top:0,behavior:"smooth"})}
 
 /* ---------- account ---------- */
@@ -451,7 +472,7 @@ async function acctGo(kind){
 async function logout(){try{await api("POST","/api/account/logout",{})}catch(e){}LS("moose-token","");S.acct=null;S.del={open:false,pin:""};renderAcct();toast("Uitgelogd")}
 async function wipeAcct(){try{await api("POST","/api/account/delete",{pin:S.del.pin});LS("moose-token","");S.acct=null;S.del={open:false,pin:""};renderAcct();toast("Account gewist")}catch(e){S.del.pin="";toast(e.message);renderAcct()}}
 const favTxt=o=>title(o)+", "+spec(o);
-function orderFav(g){const f=S.f;Object.assign(f,{drink:g.drink,dbl:!!g.dbl,milk:g.milk,syrup:g.syrup,sugar:g.sugar,note:g.note||""});
+function orderFav(g){const f=S.f;Object.assign(f,{drink:g.drink,dbl:!!g.dbl,milk:g.milk,syrup:g.syrup,sugar:g.sugar,note:g.note||"",cap:capFrom(g)});
   if(isOff("drink",f.drink)){toast(f.drink+" is op");return}
   paintHero(true);paintStrip(true);renderOpts();paintCta();order()}
 function renderAcct(){
@@ -517,6 +538,7 @@ function renderOrders(){const list=mine(),box=$("#orders");
 function job(o){
   const c=h("article",{class:"job"},h("div",{class:"th"},img(o.drink)));
   const b=h("div",{},h("div",{class:"who"},o.name),h("div",{class:"spec"},title(o)+" · "+spec(o)));
+  if(o.capName)b.append(h("div",{class:"capline"},"Capsule: "+[o.capName,o.capSys,o.capStr?"sterkte "+o.capStr:""].filter(Boolean).join(" · ")+(o.capN>1?" (2 capsules)":"")));
   if(o.status==="nieuw"||o.status==="voorstel")b.append(h("div",{class:"meta","data-t":"since","data-at":o.createdAt},ago(now()-o.createdAt)));
   if(o.note)b.append(h("div",{class:"qnote"},"Opmerking: "+o.note));
   if(o.status==="nieuw"||o.status==="bezig"||o.status==="voorstel")b.append(rcp(o));
@@ -544,13 +566,22 @@ async function tryPin(){const v=($("#pin").value||"").trim();if(!v)return;
   try{await api("POST","/api/pin",{pin:v});LS("moose-pin",v);S.pinOk=true;renderBarista()}
   catch(e){LS("moose-pin","");const x=$("#perr");if(x)x.textContent=e.message;const i=$("#pin");if(i){i.value="";i.focus()}}}
 function toggleOff(key){api("PATCH","/api/off",{item:key,off:!S.off.includes(key)}).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
-function setCaps(n){api("PATCH","/api/caps",{n}).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
-function capsPanel(){const c=S.caps,low=c!==null&&c<=5;
-  return h("div",{class:"caps"+(low?" low":"")},
-    c===null?[h("b",{},"Capsules"),h("button",{class:"stk",onclick:()=>setCaps(20)},"Bijhouden starten"),h("small",{},"Vul het aantal capsules in dat je nog hebt. Bij elke klare koffie gaat er één af (twee bij dubbel). Als het aantal 0 is, kunnen gasten niet meer bestellen.")]
-    :[h("span",{class:"n","aria-live":"polite"},String(c)),h("span",{},"capsules over"),
-      h("button",{class:"stk","aria-label":"Eén capsule minder",onclick:()=>setCaps(Math.max(0,c-1))},"−1"),h("button",{class:"stk","aria-label":"Eén capsule erbij",onclick:()=>setCaps(c+1)},"+1"),h("button",{class:"stk","aria-label":"Tien capsules erbij",onclick:()=>setCaps(c+10)},"+10"),h("button",{class:"stk",onclick:()=>setCaps(null)},"Niet bijhouden"),
-      low?h("small",{},c===0?"De capsules zijn op. Gasten kunnen niet bestellen tot je het aantal bijwerkt.":"Bijna op. Vul aan en werk het aantal bij."):null])}
+function capsOp(body,after){return api("PATCH","/api/caps",body).then(()=>{if(after)after();return poll()}).catch(e=>toast(e.message))}
+function capSel(val,opts,on,label){return h("select",{class:"field","aria-label":label,onchange:e=>{const v=e.target.value;e.target.blur();on(v)}},opts.map(([v,t])=>h("option",Object.assign({value:v},String(v)===String(val)?{selected:true}:{}),t)))}
+const STR_OPTS=[["","Sterkte"]].concat(Array.from({length:13},(_,i)=>[i+1,"Sterkte "+(i+1)])),SYS_OPTS=[["","Systeem"],["Original","Original"],["Vertuo","Vertuo"]];
+function capsPanel(){const f=S.cf,list=S.caps.list;
+  return h("div",{class:"caps"},h("h3",{},"Capsules"),
+    h("p",{class:"hint"},list.length?"Gasten kiezen zelf een soort. Bij elke bestelling gaat het aantal omlaag, en komt het terug als je een bestelling weigert of de gast annuleert. Bij 0 is de soort op.":"Voeg de soorten toe die je in huis hebt. Dan kiest de gast er een bij het bestellen, en telt Moose het aantal automatisch af."),
+    list.map(c=>h("div",{class:"caprow"+(c.n<=5?" low":"")},
+      h("div",{class:"cn"},h("b",{},c.name),h("span",{class:"n","aria-live":"polite"},String(c.n)),h("small",{},c.n<=0?"op":c.n<=5?"bijna op":"")),
+      h("div",{class:"cctl"},capSel(c.str||"",STR_OPTS,v=>capsOp({set:{id:c.id,str:v===""?0:+v}}),"Sterkte van "+c.name),capSel(c.sys,SYS_OPTS,v=>capsOp({set:{id:c.id,sys:v}}),"Systeem van "+c.name)),
+      h("div",{class:"cctl"},h("button",{class:"stk","aria-label":"Eén minder van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:Math.max(0,c.n-1)}})},"−1"),h("button",{class:"stk","aria-label":"Eén erbij van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:c.n+1}})},"+1"),h("button",{class:"stk","aria-label":"Tien erbij van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:c.n+10}})},"+10"),
+        S.capDel===c.id?[h("button",{class:"stk",style:"background:var(--tomato);border-color:var(--tomato);color:#fff",onclick:()=>{S.capDel="";capsOp({del:c.id})}},"Zeker wissen?"),h("button",{class:"stk",onclick:()=>{S.capDel="";renderBarista()}},"Nee")]:h("button",{class:"stk",onclick:()=>{S.capDel=c.id;renderBarista()}},"Verwijder")))),
+    h("div",{class:"capadd"},h("h4",{},"Soort toevoegen"),
+      h("div",{class:"cctl"},h("input",{type:"text",id:"cfn",class:"field",value:f.name,placeholder:"Naam, bijv. Ristretto",maxlength:"30","aria-label":"Naam van de capsule",oninput:e=>{f.name=e.target.value}}),
+        h("input",{type:"number",id:"cfa",class:"field",value:f.n,placeholder:"Aantal",min:"0",max:"9999",inputmode:"numeric","aria-label":"Aantal capsules",oninput:e=>{f.n=e.target.value}}),
+        capSel(f.str,STR_OPTS,v=>{f.str=v},"Sterkte"),capSel(f.sys,SYS_OPTS,v=>{f.sys=v},"Systeem"),
+        h("button",{class:"stk",onclick:()=>{if(!f.name.trim()||f.n===""){toast("Vul een naam en een aantal in");return}capsOp({add:{name:f.name,n:f.n,str:f.str===""?0:+f.str,sys:f.sys}},()=>{S.cf={name:"",n:"",str:"",sys:""};renderBarista()})}},"Toevoegen"))))}
 function stockPanel(){
   const grp=(t,items)=>[h("h3",{},t),h("div",{class:"stkrow"},items.map(([label,key])=>{const o=S.off.includes(key);
     return h("button",{class:"stk","aria-pressed":o,onclick:()=>toggleOff(key)},h("span",{},label),o?h("em",{},"op"):null)}))];
@@ -589,15 +620,15 @@ function onData(prev){
   if(prev.length&&m.some(o=>o.status==="klaar"&&was[o.id]&&was[o.id]!=="klaar")){try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}toast("Je koffie is klaar!")}
   document.title=S.view==="barista"?"Barista · Moose":m.some(o=>o.status==="klaar")?"Klaar! · Moose":"Moose · koffie";
   renderOrders();
-  const a=document.activeElement;if(S.view==="barista"&&!(a&&a.tagName==="INPUT"))renderBarista();
+  if(S.view==="barista"&&!isTyping())renderBarista();
 }
 async function poll(){
   try{const r=await fetch("/api/orders",{cache:"no-store"});if(!r.ok)throw new Error(r.status);const j=await r.json();
     S.skew=j.now-Date.now();S.needPin=!!j.pin;S.pushAvail=!!j.push;S.prefix=j.prefix||"";S.ntfy=j.ntfy||S.ntfy;if(!S.needPin)S.pinOk=true;
     if(S.needPin&&!S.pinOk&&!S.pinChecking&&LS("moose-pin")){S.pinChecking=true;api("POST","/api/pin",{pin:LS("moose-pin")}).then(()=>{S.pinOk=true;if(S.view==="barista")renderBarista()}).catch(()=>{}).finally(()=>{S.pinChecking=false})}
-    S.caps=Number.isInteger(j.caps)?j.caps:null;const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps]);
+    S.caps=j.caps&&Array.isArray(j.caps.list)?j.caps:{list:[]};const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps]);
     if(S.pushAvail&&!S.push.checked)pushState();
-    if(ko!==lastOff){lastOff=ko;S.off=j.off||[];fixSel();const a=document.activeElement,typing=a&&a.tagName==="INPUT";paintHero(false);paintStrip(false);renderOpts();paintCta();paintNotif();if(S.view==="barista"&&!typing)renderBarista()}
+    if(ko!==lastOff){lastOff=ko;S.off=j.off||[];fixSel();const typing=isTyping();paintHero(false);paintStrip(false);renderOpts();paintCta();paintNotif();if(S.view==="barista"&&!typing)renderBarista()}
     if(!S.online){S.online=true;$("#off").hidden=true}
     const t=JSON.stringify(j.orders);if(t!==last){last=t;const prev=S.orders;S.orders=j.orders;onData(prev)}}
   catch(e){if(S.online){S.online=false;$("#off").hidden=false}}}

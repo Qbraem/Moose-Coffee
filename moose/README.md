@@ -54,8 +54,10 @@ opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geh
   De pincode wordt nooit leesbaar bewaard (scrypt met eigen zout). Na 5 foute pogingen is een account 5 minuten vergrendeld, en per adres geldt een limiet.
   Gasten kunnen uitloggen en hun account zelf wissen (met hun pincode). Zonder account kun je gewoon blijven bestellen.
 - **Wachttijd:** onder elke wachtende bestelling staat hoeveel koffies er nog voor staan en een schatting in minuten.
-- **Capsulevoorraad (barista):** onder Voorraad start je het bijhouden met het aantal capsules dat je hebt. Bij elke klare koffie gaat er een af
-  (twee bij dubbel). Bij 5 of minder krijg je een melding, bij 0 kunnen gasten niet meer bestellen tot je het aantal bijwerkt.
+- **Capsules (barista en gast):** onder Voorraad voeg je soorten toe met een naam, een aantal, een sterkte (1 tot 13) en een systeem (Original of Vertuo).
+  De gast kiest bij het bestellen zelf een soort. Dat aantal gaat dan omlaag (twee bij dubbel), en komt terug als je een bestelling weigert of de gast annuleert.
+  Bij 5 of minder krijg je een melding en staat de soort in het rood, bij 0 kan de gast die soort niet meer kiezen. Bij elke bestelling ziet de barista welke capsule gekozen is.
+  Heb je geen soorten ingevoerd, dan verandert er niets aan het bestellen.
 
 ## Webmeldingen op de telefoon
 Moose kan meldingen sturen naar de telefoon, ook als de app dicht is. Dat vraagt een https-adres (een host zoals Render geeft dat)

@@ -14,11 +14,23 @@ const TYPES = {
   ".json": "application/json", ".webmanifest": "application/manifest+json"
 };
 
-let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = null;
+let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = { list: [] };
 const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, ""), REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const REDIS = !!(REDIS_URL && REDIS_TOKEN), KEY = "moose:state";
 const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization: "Bearer " + REDIS_TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(cmd) })
   .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || "HTTP " + r.status); return j.result; });
+// Capsulevoorraad: per soort een naam, sterkte (Nespresso-schaal 1 tot 13, 0 = niet ingevuld), systeem (Original of Vertuo) en aantal.
+// De gast kiest de soort bij het bestellen, en dat aantal gaat dan omlaag.
+const SYSTEMS = ["Original", "Vertuo"];
+function normCaps(c) {
+  const list = c && Array.isArray(c.list) ? c.list.filter(x => x && typeof x.id === "string" && typeof x.name === "string" && Number.isInteger(x.n))
+    .map(x => ({ id: x.id, name: x.name.slice(0, 30), n: x.n, str: Number.isInteger(x.str) && x.str >= 1 && x.str <= 13 ? x.str : 0, sys: SYSTEMS.includes(x.sys) ? x.sys : "" })).slice(0, 30) : [];
+  return { list };
+}
+function capLow(c, before) {
+  if (c.n === 0 && before > 0) notify("Capsules op: " + c.name, "Gasten kunnen de drankjes met deze capsule niet meer bestellen.", "moose-caps-" + c.id);
+  else if (c.n <= 5 && before > 5) notify("Nog " + c.n + " capsules: " + c.name, "Vul aan en werk het aantal bij.", "moose-caps-" + c.id);
+}
 async function loadState() {
   if (REDIS) {
     // Start nooit leeg als Upstash even niet antwoordt: dan zou de eerste bewaring alles overschrijven. Liever opnieuw proberen en anders stoppen (de host start de dienst dan opnieuw).
@@ -27,7 +39,7 @@ async function loadState() {
         const raw = await redis(["GET", KEY]), st = raw ? JSON.parse(raw) : {};
         orders = Array.isArray(st.orders) ? st.orders : []; off = Array.isArray(st.off) ? st.off : [];
         subs = Array.isArray(st.subs) ? st.subs : []; vapid = st.vapid || null;
-        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = Number.isInteger(st.caps) ? st.caps : null;
+        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = normCaps(st.caps);
         return console.log("  Opslag: online (Upstash), " + orders.length + " bestellingen geladen");
       } catch (e) {
         console.log("  Opslag: Upstash niet bereikbaar (" + e.message + "), poging " + i + " van 4");
@@ -37,7 +49,7 @@ async function loadState() {
     }
   }
   try { orders = JSON.parse(fs.readFileSync(DB, "utf8")); } catch (e) {}
-  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = Number.isInteger(c.caps) ? c.caps : null; } catch (e) {}
+  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = normCaps(c.caps); } catch (e) {}
 }
 async function load() { await loadState(); ensureVapid(); }
 function writer(file, get) {
@@ -167,7 +179,7 @@ function newSession(u) {
   return t;
 }
 // Het gewone: de combinatie die het vaakst besteld is (bij gelijkstand de meest recente).
-const sig = o => [o.drink, o.dbl ? 1 : 0, o.milk, o.syrup, o.sugar].join("|");
+const sig = o => [o.drink, o.dbl ? 1 : 0, o.milk, o.syrup, o.sugar, o.capName || ""].join("|");
 function gewone(u) {
   const c = new Map();
   for (const o of u.hist || []) { const k = sig(o), e = c.get(k); if (e) e.n++; else c.set(k, { n: 1, o }); }
@@ -284,10 +296,28 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/api/caps" && req.method === "PATCH") {
       if (!authed(req)) return deny(res, req);
-      const b = await readBody(req);
-      if (b.n === null) caps = null;
-      else if (Number.isFinite(Number(b.n)) && b.n !== "" && b.n !== true) caps = Math.min(999, Math.max(0, Math.round(Number(b.n))));
-      else return send(res, 400, { error: "ongeldig aantal" });
+      const b = await readBody(req), num = (v, max) => (v !== "" && v !== null && typeof v !== "boolean" && Number.isFinite(Number(v))) ? Math.min(max, Math.max(0, Math.round(Number(v)))) : null;
+      const fields = (o, c) => {
+        if (o.name !== undefined) { const nm = s(o.name, 30).trim(); if (!nm) return "Geef een naam"; if (caps.list.some(x => x !== c && x.name.toLowerCase() === nm.toLowerCase())) return "Die soort bestaat al"; c.name = nm; }
+        if (o.str !== undefined) { const v = num(o.str, 13); if (v === null) return "ongeldige sterkte"; c.str = v; }
+        if (o.sys !== undefined) { if (o.sys !== "" && !SYSTEMS.includes(o.sys)) return "ongeldig systeem"; c.sys = o.sys; }
+        return "";
+      };
+      if (b.add) {
+        const n = num(b.add.n, 9999); if (n === null) return send(res, 400, { error: "Geef een aantal" });
+        if (caps.list.length >= 30) return send(res, 400, { error: "Er kunnen maximaal 30 soorten bij" });
+        const c = { id: crypto.randomBytes(4).toString("hex"), name: "", n, str: 0, sys: "" };
+        if (b.add.name === undefined) return send(res, 400, { error: "Geef een naam" });
+        const e = fields(b.add, c); if (e) return send(res, e.startsWith("Die") ? 409 : 400, { error: e });
+        caps.list.push(c);
+      } else if (b.set) {
+        const c = caps.list.find(x => x.id === b.set.id); if (!c) return send(res, 404, { error: "niet gevonden" });
+        if (b.set.n !== undefined) { const n = num(b.set.n, 9999); if (n === null) return send(res, 400, { error: "ongeldig aantal" }); const before = c.n; c.n = n; capLow(c, before); }
+        const e = fields(b.set, c); if (e) return send(res, e.startsWith("Die") ? 409 : 400, { error: e });
+      } else if (b.del) {
+        if (!caps.list.some(x => x.id === b.del)) return send(res, 404, { error: "niet gevonden" });
+        caps.list = caps.list.filter(x => x.id !== b.del);
+      } else return send(res, 400, { error: "niets te doen" });
       saveCfg();
       return send(res, 200, { caps });
     }
@@ -303,13 +333,16 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/orders" && req.method === "POST") {
       const b = await readBody(req), name = s(b.name, 40).trim();
       if (!name || !b.drink) return send(res, 400, { error: "naam en drankje zijn verplicht" });
-      if (caps === 0) return send(res, 409, { error: "De capsules zijn op" });
+      const need = b.dbl ? 2 : 1, cp = caps.list.length ? caps.list.find(x => x.id === b.cap) : null;
+      if (caps.list.length && !cp) return send(res, 400, { error: "Kies een capsule" });
+      if (cp && cp.n < need) return send(res, 409, { error: cp.n <= 0 ? cp.name + " is op" : "Er is nog maar " + cp.n + " capsule " + cp.name + ", dus geen dubbele" });
       for (const [g, v] of [["drink", b.drink], ["milk", b.milk], ["syrup", b.syrup], ["sugar", b.sugar]])
         if (isOff(g, s(v, 30))) return send(res, 409, { error: s(v, 30) + " is op" });
       const o = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), drink: s(b.drink, 30), dbl: !!b.dbl, milk: s(b.milk, 30), syrup: s(b.syrup, 30), sugar: s(b.sugar, 30), note: s(b.note, 200), name, by: s(b.by, 40), status: "nieuw", createdAt: Date.now() };
+      if (cp) { o.capId = cp.id; o.capN = need; o.capName = cp.name; o.capStr = cp.str; o.capSys = cp.sys; const before = cp.n; cp.n -= need; capLow(cp, before); saveCfg(); }
       orders.unshift(o); orders = orders.slice(0, 200);
       const au = userOf(req);
-      if (au) { au.hist = [{ drink: o.drink, dbl: o.dbl, milk: o.milk, syrup: o.syrup, sugar: o.sugar, note: o.note, at: o.createdAt }].concat(au.hist || []).slice(0, 30); au.total = (au.total || 0) + 1; saveCfg(); }
+      if (au) { au.hist = [{ drink: o.drink, dbl: o.dbl, milk: o.milk, syrup: o.syrup, sugar: o.sugar, note: o.note, capId: o.capId || "", capName: o.capName || "", at: o.createdAt }].concat(au.hist || []).slice(0, 30); au.total = (au.total || 0) + 1; saveCfg(); }
       save();
       notify("Nieuwe koffie van " + o.name, label(o) + (o.note ? " (" + o.note + ")" : ""), "order-" + o.id);
       return send(res, 201, o);
@@ -327,20 +360,17 @@ const server = http.createServer(async (req, res) => {
       if (b.status !== undefined) {
         if (!STATUS.includes(b.status)) return send(res, 400, { error: "ongeldige status" });
         o.status = b.status;
-        if (b.status === "klaar") {
-          o.etaAt = null; o.readyAt = Date.now();
-          if (prev !== "klaar" && caps !== null) {
-            const before = caps; caps = Math.max(0, caps - (o.dbl ? 2 : 1)); saveCfg();
-            if (caps === 0 && before > 0) notify("De capsules zijn op", "Klanten kunnen niet meer bestellen tot je het aantal bijwerkt.", "moose-caps");
-            else if (caps <= 5 && before > 5) notify("Nog " + caps + " capsules", "Vul aan en werk het aantal bij.", "moose-caps");
-          }
-        }
+        if (b.status === "klaar") { o.etaAt = null; o.readyAt = Date.now(); }
       }
       if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o), "order-" + o.id);
       if (b.status && b.status !== prev) {
         if (b.status === "klaar") notifyClient(o, "Je koffie is klaar!", label(o) + ": kom ’m maar halen.");
         if (b.status === "voorstel") notifyClient(o, "Voorstel van de barista", s(b.reply, 200));
         if (b.status === "geweigerd") notifyClient(o, "Helaas niet gelukt", "De barista kan je " + label(o) + " nu niet maken.");
+      }
+      // Mislukt of geannuleerd voor het klaar was: de capsules gaan terug in de voorraad.
+      if (o.capId && !o.capBack && b.status && b.status !== prev && (b.status === "geweigerd" || (b.status === "weg" && prev !== "klaar" && prev !== "geweigerd"))) {
+        const c = caps.list.find(x => x.id === o.capId); o.capBack = true; if (c) { c.n += o.capN || 1; saveCfg(); }
       }
       if (b.reply !== undefined) o.reply = s(b.reply, 200);
       if (b.accepted !== undefined) o.accepted = !!b.accepted;
