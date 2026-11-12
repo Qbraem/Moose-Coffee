@@ -54,7 +54,7 @@ opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geh
   De pincode wordt nooit leesbaar bewaard (scrypt met eigen zout). Na 5 foute pogingen is een account 5 minuten vergrendeld, en per adres geldt een limiet.
   Gasten kunnen uitloggen en hun account zelf wissen (met hun pincode). Zonder account kun je gewoon blijven bestellen.
 - **Wachttijd:** onder elke wachtende bestelling staat hoeveel koffies er nog voor staan en een schatting in minuten.
-- **Capsules (barista en gast):** onder Voorraad voeg je soorten toe met een naam, een aantal, een sterkte (1 tot 13) en een systeem (Original of Vertuo).
+- **Capsules (barista en gast):** onder Voorraad voeg je soorten toe met een naam, een aantal, een sterkte (1 tot 13), een systeem (Original of Vertuo) en of het een Deca (cafeïnevrij) is.
   De gast kiest bij het bestellen zelf een soort. Dat aantal gaat dan omlaag (twee bij dubbel), en komt terug als je een bestelling weigert of de gast annuleert.
   Bij 5 of minder krijg je een melding en staat de soort in het rood, bij 0 kan de gast die soort niet meer kiezen. Bij elke bestelling ziet de barista welke capsule gekozen is.
   Heb je geen soorten ingevoerd, dan verandert er niets aan het bestellen.

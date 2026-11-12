@@ -34,7 +34,7 @@ function normTips(t) {
 tips = normTips();
 function normCaps(c) {
   const list = c && Array.isArray(c.list) ? c.list.filter(x => x && typeof x.id === "string" && typeof x.name === "string" && Number.isInteger(x.n))
-    .map(x => ({ id: x.id, name: x.name.slice(0, 30), n: x.n, str: Number.isInteger(x.str) && x.str >= 1 && x.str <= 13 ? x.str : 0, sys: SYSTEMS.includes(x.sys) ? x.sys : "", tip: x.tip !== false })).slice(0, 30) : [];
+    .map(x => ({ id: x.id, name: x.name.slice(0, 30), n: x.n, str: Number.isInteger(x.str) && x.str >= 1 && x.str <= 13 ? x.str : 0, sys: SYSTEMS.includes(x.sys) ? x.sys : "", tip: x.tip !== false, deca: x.deca === true })).slice(0, 30) : [];
   return { list };
 }
 function capLow(c, before) {
@@ -311,13 +311,14 @@ const server = http.createServer(async (req, res) => {
         if (o.name !== undefined) { const nm = s(o.name, 30).trim(); if (!nm) return "Geef een naam"; if (caps.list.some(x => x !== c && x.name.toLowerCase() === nm.toLowerCase())) return "Die soort bestaat al"; c.name = nm; }
         if (o.str !== undefined) { const v = num(o.str, 13); if (v === null) return "ongeldige sterkte"; c.str = v; }
         if (o.tip !== undefined) c.tip = o.tip !== false;
+        if (o.deca !== undefined) c.deca = o.deca === true;
         if (o.sys !== undefined) { if (o.sys !== "" && !SYSTEMS.includes(o.sys)) return "ongeldig systeem"; c.sys = o.sys; }
         return "";
       };
       if (b.add) {
         const n = num(b.add.n, 9999); if (n === null) return send(res, 400, { error: "Geef een aantal" });
         if (caps.list.length >= 30) return send(res, 400, { error: "Er kunnen maximaal 30 soorten bij" });
-        const c = { id: crypto.randomBytes(4).toString("hex"), name: "", n, str: 0, sys: "", tip: true };
+        const c = { id: crypto.randomBytes(4).toString("hex"), name: "", n, str: 0, sys: "", tip: true, deca: false };
         if (b.add.name === undefined) return send(res, 400, { error: "Geef een naam" });
         const e = fields(b.add, c); if (e) return send(res, e.startsWith("Die") ? 409 : 400, { error: e });
         caps.list.push(c);
@@ -358,7 +359,7 @@ const server = http.createServer(async (req, res) => {
       for (const [g, v] of [["drink", b.drink], ["milk", b.milk], ["syrup", b.syrup], ["sugar", b.sugar]])
         if (isOff(g, s(v, 30))) return send(res, 409, { error: s(v, 30) + " is op" });
       const o = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), drink: s(b.drink, 30), dbl: !!b.dbl, milk: s(b.milk, 30), syrup: s(b.syrup, 30), sugar: s(b.sugar, 30), note: s(b.note, 200), name, by: s(b.by, 40), status: "nieuw", createdAt: Date.now() };
-      if (cp) { o.capId = cp.id; o.capN = need; o.capName = cp.name; o.capStr = cp.str; o.capSys = cp.sys; const before = cp.n; cp.n -= need; capLow(cp, before); saveCfg(); }
+      if (cp) { o.capId = cp.id; o.capN = need; o.capName = cp.name; o.capStr = cp.str; o.capSys = cp.sys; o.capDeca = !!cp.deca; const before = cp.n; cp.n -= need; capLow(cp, before); saveCfg(); }
       orders.unshift(o); orders = orders.slice(0, 200);
       const au = userOf(req);
       if (au) { au.hist = [{ drink: o.drink, dbl: o.dbl, milk: o.milk, syrup: o.syrup, sugar: o.sugar, note: o.note, capId: o.capId || "", capName: o.capName || "", at: o.createdAt }].concat(au.hist || []).slice(0, 30); au.total = (au.total || 0) + 1; saveCfg(); }

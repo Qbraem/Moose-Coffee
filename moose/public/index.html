@@ -306,7 +306,7 @@ let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.n
 const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",cap:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],tips:{},caps:{list:[]},cf:{name:"",n:"",str:"",sys:""},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],tips:{},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -355,7 +355,7 @@ const capNeed=f=>f.dbl?2:1;
 const capBad=f=>S.caps.list.length>0&&!(capOf(f.cap)&&capOf(f.cap).n>=capNeed(f));
 // Siroopsuggestie: alleen als er voor dit drankje een staat, die siroop niet op is, er nog geen siroop gekozen is en de gekozen capsule suggesties toestaat.
 function tipFor(f){const t=S.tips[f.drink];if(!t||f.syrup!=="Geen"||isOff("syrup",t))return null;const c=capOf(f.cap);return c&&c.tip===false?null:t}
-const capSub=c=>[c.sys,c.str?"sterkte "+c.str:""].filter(Boolean).join(" · ");
+const capSub=c=>[c.deca?"Deca":"",c.sys,c.str?"sterkte "+c.str:""].filter(Boolean).join(" · ");
 function fixSel(){const f=S.f;
   if(S.caps.list.length){const c=capOf(f.cap);if(!c||c.n<=0){const a=S.caps.list.find(x=>x.n>0);f.cap=a?a.id:""}}else f.cap="";
   if(isOff("drink",f.drink)){const a=DRINKS.find(d=>!isOff("drink",d.n));if(a){f.drink=a.n;if(!a.milk)f.milk="Geen melk"}}
@@ -544,7 +544,7 @@ function renderOrders(){const list=mine(),box=$("#orders");
 function job(o){
   const c=h("article",{class:"job"},h("div",{class:"th"},img(o.drink)));
   const b=h("div",{},h("div",{class:"who"},o.name),h("div",{class:"spec"},title(o)+" · "+spec(o)));
-  if(o.capName)b.append(h("div",{class:"capline"},"Capsule: "+[o.capName,o.capSys,o.capStr?"sterkte "+o.capStr:""].filter(Boolean).join(" · ")+(o.capN>1?" (2 capsules)":"")));
+  if(o.capName)b.append(h("div",{class:"capline"},"Capsule: "+[o.capName,o.capDeca?"DECA":"",o.capSys,o.capStr?"sterkte "+o.capStr:""].filter(Boolean).join(" · ")+(o.capN>1?" (2 capsules)":"")));
   if(o.status==="nieuw"||o.status==="voorstel")b.append(h("div",{class:"meta","data-t":"since","data-at":o.createdAt},ago(now()-o.createdAt)));
   if(o.note)b.append(h("div",{class:"qnote"},"Opmerking: "+o.note));
   if(o.status==="nieuw"||o.status==="bezig"||o.status==="voorstel")b.append(rcp(o));
@@ -574,20 +574,21 @@ async function tryPin(){const v=($("#pin").value||"").trim();if(!v)return;
 function toggleOff(key){api("PATCH","/api/off",{item:key,off:!S.off.includes(key)}).then(poll).catch(e=>toast("Opslaan mislukt: "+e.message))}
 function capsOp(body,after){return api("PATCH","/api/caps",body).then(()=>{if(after)after();return poll()}).catch(e=>toast(e.message))}
 function capSel(val,opts,on,label){return h("select",{class:"field","aria-label":label,onchange:e=>{const v=e.target.value;e.target.blur();on(v)}},opts.map(([v,t])=>h("option",Object.assign({value:v},String(v)===String(val)?{selected:true}:{}),t)))}
+const DECA_OPTS=[["0","Met cafeïne"],["1","Deca"]];
 const STR_OPTS=[["","Sterkte"]].concat(Array.from({length:13},(_,i)=>[i+1,"Sterkte "+(i+1)])),SYS_OPTS=[["","Systeem"],["Original","Original"],["Vertuo","Vertuo"]];
 function capsPanel(){const f=S.cf,list=S.caps.list;
   return h("div",{class:"caps"},h("h3",{},"Capsules"),
     h("p",{class:"hint"},list.length?"Gasten kiezen zelf een soort. Bij elke bestelling gaat het aantal omlaag, en komt het terug als je een bestelling weigert of de gast annuleert. Bij 0 is de soort op.":"Voeg de soorten toe die je in huis hebt. Dan kiest de gast er een bij het bestellen, en telt Moose het aantal automatisch af."),
     list.map(c=>h("div",{class:"caprow"+(c.n<=5?" low":"")},
       h("div",{class:"cn"},h("b",{},c.name),h("span",{class:"n","aria-live":"polite"},String(c.n)),h("small",{},c.n<=0?"op":c.n<=5?"bijna op":"")),
-      h("div",{class:"cctl"},capSel(c.str||"",STR_OPTS,v=>capsOp({set:{id:c.id,str:v===""?0:+v}}),"Sterkte van "+c.name),capSel(c.sys,SYS_OPTS,v=>capsOp({set:{id:c.id,sys:v}}),"Systeem van "+c.name),capSel(c.tip===false?"0":"1",[["1","Siroop-tips aan"],["0","Geen siroop-tips"]],v=>capsOp({set:{id:c.id,tip:v==="1"}}),"Siroopsuggesties bij "+c.name)),
+      h("div",{class:"cctl"},capSel(c.str||"",STR_OPTS,v=>capsOp({set:{id:c.id,str:v===""?0:+v}}),"Sterkte van "+c.name),capSel(c.sys,SYS_OPTS,v=>capsOp({set:{id:c.id,sys:v}}),"Systeem van "+c.name),capSel(c.deca?"1":"0",DECA_OPTS,v=>capsOp({set:{id:c.id,deca:v==="1"}}),"Cafeïne van "+c.name),capSel(c.tip===false?"0":"1",[["1","Siroop-tips aan"],["0","Geen siroop-tips"]],v=>capsOp({set:{id:c.id,tip:v==="1"}}),"Siroopsuggesties bij "+c.name)),
       h("div",{class:"cctl"},h("button",{class:"stk","aria-label":"Eén minder van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:Math.max(0,c.n-1)}})},"−1"),h("button",{class:"stk","aria-label":"Eén erbij van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:c.n+1}})},"+1"),h("button",{class:"stk","aria-label":"Tien erbij van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:c.n+10}})},"+10"),
         S.capDel===c.id?[h("button",{class:"stk",style:"background:var(--tomato);border-color:var(--tomato);color:#fff",onclick:()=>{S.capDel="";capsOp({del:c.id})}},"Zeker wissen?"),h("button",{class:"stk",onclick:()=>{S.capDel="";renderBarista()}},"Nee")]:h("button",{class:"stk",onclick:()=>{S.capDel=c.id;renderBarista()}},"Verwijder")))),
     h("div",{class:"capadd"},h("h4",{},"Soort toevoegen"),
       h("div",{class:"cctl"},h("input",{type:"text",id:"cfn",class:"field",value:f.name,placeholder:"Naam, bijv. Ristretto",maxlength:"30","aria-label":"Naam van de capsule",oninput:e=>{f.name=e.target.value}}),
         h("input",{type:"number",id:"cfa",class:"field",value:f.n,placeholder:"Aantal",min:"0",max:"9999",inputmode:"numeric","aria-label":"Aantal capsules",oninput:e=>{f.n=e.target.value}}),
-        capSel(f.str,STR_OPTS,v=>{f.str=v},"Sterkte"),capSel(f.sys,SYS_OPTS,v=>{f.sys=v},"Systeem"),
-        h("button",{class:"stk",onclick:()=>{if(!f.name.trim()||f.n===""){toast("Vul een naam en een aantal in");return}capsOp({add:{name:f.name,n:f.n,str:f.str===""?0:+f.str,sys:f.sys}},()=>{S.cf={name:"",n:"",str:"",sys:""};renderBarista()})}},"Toevoegen"))))}
+        capSel(f.str,STR_OPTS,v=>{f.str=v},"Sterkte"),capSel(f.sys,SYS_OPTS,v=>{f.sys=v},"Systeem"),capSel(f.deca,DECA_OPTS,v=>{f.deca=v},"Cafeïne"),
+        h("button",{class:"stk",onclick:()=>{if(!f.name.trim()||f.n===""){toast("Vul een naam en een aantal in");return}capsOp({add:{name:f.name,n:f.n,str:f.str===""?0:+f.str,sys:f.sys,deca:f.deca==="1"}},()=>{S.cf={name:"",n:"",str:"",sys:"",deca:"0"};renderBarista()})}},"Toevoegen"))))}
 function tipsPanel(){
   const opts=[["","Geen suggestie"]].concat(SYRUP.filter(x=>x[1]).map(x=>[x[0],x[0]]));
   return h("div",{class:"caps"},h("h3",{},"Siroopsuggesties"),
