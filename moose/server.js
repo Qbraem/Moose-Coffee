@@ -14,7 +14,7 @@ const TYPES = {
   ".json": "application/json", ".webmanifest": "application/manifest+json"
 };
 
-let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = { list: [] }, tips = null;
+let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = { list: [] }, tips = null, stats = null;
 const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, ""), REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const REDIS = !!(REDIS_URL && REDIS_TOKEN), KEY = "moose:state";
 const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization: "Bearer " + REDIS_TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(cmd) })
@@ -49,7 +49,7 @@ async function loadState() {
         const raw = await redis(["GET", KEY]), st = raw ? JSON.parse(raw) : {};
         orders = Array.isArray(st.orders) ? st.orders : []; off = Array.isArray(st.off) ? st.off : [];
         subs = Array.isArray(st.subs) ? st.subs : []; vapid = st.vapid || null;
-        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = normCaps(st.caps); tips = normTips(st.tips);
+        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = normCaps(st.caps); tips = normTips(st.tips); stats = st.stats || null;
         return console.log("  Opslag: online (Upstash), " + orders.length + " bestellingen geladen");
       } catch (e) {
         console.log("  Opslag: Upstash niet bereikbaar (" + e.message + "), poging " + i + " van 4");
@@ -59,7 +59,7 @@ async function loadState() {
     }
   }
   try { orders = JSON.parse(fs.readFileSync(DB, "utf8")); } catch (e) {}
-  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = normCaps(c.caps); tips = normTips(c.tips); } catch (e) {}
+  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = normCaps(c.caps); tips = normTips(c.tips); stats = c.stats || null; } catch (e) {}
 }
 async function load() { await loadState(); ensureVapid(); }
 function writer(file, get) {
@@ -67,8 +67,8 @@ function writer(file, get) {
   return () => { clearTimeout(t); t = setTimeout(() => fs.writeFile(file + ".tmp", JSON.stringify(get()), e => { if (!e) fs.rename(file + ".tmp", file, () => {}); }), 100); };
 }
 let rt = null;
-const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps, tips })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
-const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid, users, sess, caps, tips }));
+const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps, tips, stats })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
+const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid, users, sess, caps, tips, stats }));
 const save = () => { if (REDIS) saveRemote(); else saveLocal(); }, saveCfg = () => { if (REDIS) saveRemote(); else saveCfgLocal(); };
 
 // ---------- meldingen via ntfy ----------
@@ -198,6 +198,40 @@ function gewone(u) {
 }
 const me = u => ({ name: u.name, hist: (u.hist || []).slice(0, 12), gewone: gewone(u), total: u.total || 0 });
 
+// ---------- statistieken ----------
+// Alleen optellingen, geen bestellijst: dat blijft klein en past ook ver na de laatste 200 bestellingen nog. Een koffie telt mee zodra hij klaar is.
+const tzf = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23", weekday: "short" });
+const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function when(t) { const p = {}; for (const x of tzf.formatToParts(new Date(t))) p[x.type] = x.value; return { day: p.year + "-" + p.month + "-" + p.day, hour: (+p.hour) % 24, wd: WD.indexOf(p.weekday) }; }
+const bump = (m, k, d) => { if (!k) return; m[k] = (m[k] || 0) + d; if (m[k] <= 0) delete m[k]; };
+function ensureStats() {
+  if (stats) return;
+  stats = { since: orders.length ? orders[orders.length - 1].createdAt : Date.now(), total: 0, caps: 0, dbl: 0, deca: 0, drinks: {}, milk: {}, syrup: {}, sugar: {}, capNames: {}, hours: Array(24).fill(0), wdays: Array(7).fill(0), days: {}, people: {}, wait: { n: 0, sum: 0, min: 0, max: 0 } };
+  for (const o of orders.slice().reverse()) if (o.readyAt && o.status !== "geweigerd") { o.counted = true; tally(o, 1); } // bestaande bestellingen meetellen
+}
+function tally(o, d) {
+  const st = stats, w = when(o.createdAt), k = nameKey(o.name);
+  st.total += d; st.caps += d * (o.capN || (o.dbl ? 2 : 1)); if (o.dbl) st.dbl += d; if (o.capDeca) st.deca += d;
+  bump(st.drinks, o.drink, d); bump(st.milk, o.milk, d); bump(st.syrup, o.syrup, d); bump(st.sugar, o.sugar, d); bump(st.capNames, o.capName, d);
+  st.hours[w.hour] = Math.max(0, st.hours[w.hour] + d); if (w.wd >= 0) st.wdays[w.wd] = Math.max(0, st.wdays[w.wd] + d); bump(st.days, w.day, d);
+  if (st.people[k] || (d > 0 && Object.keys(st.people).length < 150)) { const pe = st.people[k] || (st.people[k] = { name: o.name, n: 0, drinks: {} }); pe.n += d; bump(pe.drinks, o.drink, d); if (pe.n <= 0) delete st.people[k]; }
+  if (o.readyAt && o.readyAt > o.createdAt && o.readyAt - o.createdAt < 3 * 3600e3) {
+    const sec = Math.round((o.readyAt - o.createdAt) / 1000); st.wait.n += d; st.wait.sum += d * sec;
+    if (d > 0) { st.wait.min = st.wait.min ? Math.min(st.wait.min, sec) : sec; st.wait.max = Math.max(st.wait.max, sec); }
+  }
+  const ds = Object.keys(st.days).sort(); while (ds.length > 400) delete st.days[ds.shift()];
+}
+const dayNum = d => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 864e5;
+function statsOut() {
+  ensureStats(); const st = stats, days = Object.keys(st.days).sort(), today = when(Date.now()).day;
+  let best = null, max = 0, run = 0, prev = null;
+  for (const d of days) { if (!best || st.days[d] > best.n) best = { day: d, n: st.days[d] }; run = prev !== null && dayNum(d) - dayNum(prev) === 1 ? run + 1 : 1; max = Math.max(max, run); prev = d; }
+  const cur = days.length && dayNum(today) - dayNum(days[days.length - 1]) <= 1 ? run : 0;
+  const last14 = []; for (let i = 13; i >= 0; i--) { const d = new Date((dayNum(today) - i) * 864e5).toISOString().slice(0, 10); last14.push({ day: d, n: st.days[d] || 0 }); }
+  const people = Object.values(st.people).sort((a, b) => b.n - a.n).slice(0, 5).map(p => ({ name: p.name, n: p.n, fav: (Object.entries(p.drinks).sort((a, b) => b[1] - a[1])[0] || [""])[0] }));
+  return { since: st.since, total: st.total, caps: st.caps, dbl: st.dbl, deca: st.deca, drinks: st.drinks, milk: st.milk, syrup: st.syrup, sugar: st.sugar, capNames: st.capNames, hours: st.hours, wdays: st.wdays, last14, best, streak: { cur, max }, wait: st.wait, people, activeDays: days.length, today: st.days[today] || 0 };
+}
+
 // ---------- voorraad ----------
 const isOff = (g, v) => g === "sugar" ? (v === "Zoetstof" ? off.includes("sugar:Zoetstof") : v !== "Geen" && off.includes("sugar:Suiker"))
   : v !== "Geen" && v !== "Geen melk" && off.includes(g + ":" + v);
@@ -213,8 +247,8 @@ const readBody = req => new Promise((ok, no) => {
 // Bij afsluiten (bijvoorbeeld tijdens een nieuwe uitrol) eerst alles wegschrijven, zodat de laatste wijziging niet verloren gaat.
 async function flushAndExit() {
   try {
-    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps, tips })]); }
-    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid, users, sess, caps, tips })); }
+    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps, tips, stats })]); }
+    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid, users, sess, caps, tips, stats })); }
   } catch (e) { console.log("Wegschrijven bij afsluiten mislukt: " + e.message); }
   process.exit(0);
 }
@@ -380,7 +414,10 @@ const server = http.createServer(async (req, res) => {
       if (b.status !== undefined) {
         if (!STATUS.includes(b.status)) return send(res, 400, { error: "ongeldige status" });
         o.status = b.status;
-        if (b.status === "klaar") { o.etaAt = null; o.readyAt = Date.now(); }
+        if (b.status === "klaar") {
+          o.etaAt = null; o.readyAt = Date.now();
+          ensureStats(); if (!o.counted) { o.counted = true; tally(o, 1); saveCfg(); }
+        }
       }
       if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o), "order-" + o.id);
       if (b.status && b.status !== prev) {
@@ -406,6 +443,17 @@ const server = http.createServer(async (req, res) => {
       save();
       return send(res, 200, o);
     }
+    if (m && req.method === "DELETE") {
+      if (!authed(req)) return deny(res, req);
+      const i = orders.findIndex(x => x.id === m[1]);
+      if (i < 0) return send(res, 404, { error: "bestelling niet gevonden" });
+      const o = orders[i]; ensureStats();
+      if (o.counted) tally(o, -1); // een verwijderde bestelling telt niet meer mee
+      if (o.capId && !o.capBack && !o.readyAt && o.status !== "klaar") { const c = caps.list.find(x => x.id === o.capId); if (c) c.n += o.capN || 1; } // nooit klaar geweest: capsules terug
+      orders.splice(i, 1); save(); saveCfg();
+      return send(res, 200, { ok: true });
+    }
+    if (url.pathname === "/api/stats" && req.method === "GET") return send(res, 200, statsOut());
     if (req.method === "GET") {
       let p = path.normalize(decodeURIComponent(url.pathname));
       if (p === "/" || p === "\\") p = "/index.html";

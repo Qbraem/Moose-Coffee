@@ -48,9 +48,9 @@ De computer met de server moet internet hebben. Per melding gaan alleen de naam,
 opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geheim.
 (Zelf hosten kan ook: zet `NTFY_SERVER=https://jouw-server` erbij.)
 
-## Accounts, "het gewone" en wachttijd
+## Accounts, favoriet en wachttijd
 - **Account met naam en pincode (niet verplicht):** een gast kiest een naam en een pincode van 4 tot 6 cijfers. Daarna onthoudt Moose
-  "het gewone" (de combinatie die het vaakst besteld is) en de laatste bestellingen, op elke telefoon waar je inlogt.
+  je favoriet (de combinatie die het vaakst besteld is) en de laatste bestellingen, op elke telefoon waar je inlogt.
   De pincode wordt nooit leesbaar bewaard (scrypt met eigen zout). Na 5 foute pogingen is een account 5 minuten vergrendeld, en per adres geldt een limiet.
   Gasten kunnen uitloggen en hun account zelf wissen (met hun pincode). Zonder account kun je gewoon blijven bestellen.
 - **Wachttijd:** onder elke wachtende bestelling staat hoeveel koffies er nog voor staan en een schatting in minuten.
@@ -62,6 +62,14 @@ opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geh
 - **Siroopsuggesties:** bij het bestellen krijgt de gast een tip met een siroop die past bij het gekozen drankje (standaard: latte met pumpkin spice,
   cappuccino met hazelnoot, latte macchiato met white mocha). De barista past dat per drankje aan onder Voorraad, en zet de tips per capsule uit
   (bijvoorbeeld bij een sterke ristretto). Is de siroop op of heeft de gast al een siroop gekozen, dan verschijnt er geen tip.
+
+## Statistieken en bestelgeschiedenis
+- **Stats-tab (voor iedereen):** het totaal aantal koffies, een weetje dat je telkens kunt vernieuwen ("Wist je dat…": favoriet drankje, dubbel of niet,
+  melk, siroop, drukste uur en dag, recorddag, koffie-reeks, gemiddelde wachttijd, grootste koffieliefhebber, favoriete capsule), de populairste drankjes
+  en grafiekjes per dag, per uur en per weekdag. Een koffie telt mee zodra hij klaar is. Er worden alleen optellingen bewaard, dus het blijft klein.
+  De namen van de gasten staan in de lijst van koffieliefhebbers.
+- **Eerdere bestellingen (barista):** onder het baristascherm staat een lijst van afgesloten bestellingen. Tik erop voor alle details (opties, capsule,
+  opmerking, tijden) en verwijder ze indien nodig. Een verwijderde bestelling telt ook niet meer mee in de statistieken. De laatste 200 bestellingen blijven bewaard.
 
 ## Webmeldingen op de telefoon
 Moose kan meldingen sturen naar de telefoon, ook als de app dicht is. Dat vraagt een https-adres (een host zoals Render geeft dat)
