@@ -230,6 +230,9 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 .caps input.field{flex:1 1 150px}.caps input[type=number].field{flex:0 1 96px}
 .caps .stk{padding:8px 14px}
 .capadd h4{margin:14px 0 8px;font-size:13px;color:#A9BDA9;font-weight:600}
+.tip{margin-top:12px;padding:10px 14px;border-radius:14px;background:var(--butter);color:var(--pine);display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;font-size:14px;font-weight:600}
+.tip span{flex:1 1 180px}.tip .btn{min-height:40px;background:var(--pine);color:var(--butter)}
+.tiprow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(244,211,94,.18)}.tiprow b{font-size:15px}
 .capline{margin-top:4px;font-size:14px;font-weight:700;color:var(--butter)}
 </style>
 </head>
@@ -303,7 +306,7 @@ let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.n
 const S={view:LS("moose-view")==="barista"?"barista":"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",cap:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],caps:{list:[]},cf:{name:"",n:"",str:"",sys:""},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],tips:{},caps:{list:[]},cf:{name:"",n:"",str:"",sys:""},capDel:"",acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -350,6 +353,8 @@ const isOff=(g,v)=>g==="sugar"?(v==="Zoetstof"?S.off.includes("sugar:Zoetstof"):
 const capOf=id=>S.caps.list.find(c=>c.id===id);
 const capNeed=f=>f.dbl?2:1;
 const capBad=f=>S.caps.list.length>0&&!(capOf(f.cap)&&capOf(f.cap).n>=capNeed(f));
+// Siroopsuggestie: alleen als er voor dit drankje een staat, die siroop niet op is, er nog geen siroop gekozen is en de gekozen capsule suggesties toestaat.
+function tipFor(f){const t=S.tips[f.drink];if(!t||f.syrup!=="Geen"||isOff("syrup",t))return null;const c=capOf(f.cap);return c&&c.tip===false?null:t}
 const capSub=c=>[c.sys,c.str?"sterkte "+c.str:""].filter(Boolean).join(" · ");
 function fixSel(){const f=S.f;
   if(S.caps.list.length){const c=capOf(f.cap);if(!c||c.n<=0){const a=S.caps.list.find(x=>x.n>0);f.cap=a?a.id:""}}else f.cap="";
@@ -438,7 +443,8 @@ function renderOpts(){
         h("span",{},c.name),capSub(c)?h("small",{},capSub(c)):null,out?h("em",{},"op"):few?h("em",{},"te weinig"):null)}))):null,
     g("Enkel of dubbel",h("div",{class:"two"},chip("sterkte","Enkel",!f.dbl,set("dbl",false)),chip("sterkte","Dubbel",f.dbl,set("dbl",true)))),
     f.drink==="Espresso"?null:g("Melk",h("div",{class:"chips"},MILK.map(m=>chip("melk",m,f.milk===m,set("milk",m))))),
-    g("Siroop",h("div",{class:"chips"},SYRUP.map(([s,c])=>chip("siroop",s,f.syrup===s,set("syrup",s),c)))),
+    g("Siroop",h("div",{class:"chips"},SYRUP.map(([s,c])=>chip("siroop",s,f.syrup===s,set("syrup",s),c))),
+      tipFor(f)?h("div",{class:"tip",role:"note"},h("span",{},"Tip: "+tipFor(f)+" past goed bij een "+f.drink.toLowerCase()+"."),h("button",{class:"btn",onclick:()=>{f.syrup=tipFor(f);renderOpts();paintHero(false);paintCta()}},"Probeer")):null),
     g("Suiker",h("div",{class:"chips"},SUGAR.map(s=>chip("suiker",s,f.sugar===s,set("sugar",s))))),
     g("Opmerking",h("input",{type:"text",id:"note",class:"field",value:f.note,placeholder:"Extra heet, weinig schuim…","aria-label":"Opmerking voor de barista",oninput:e=>{f.note=e.target.value}})));
   if(k){const el=box.querySelector('[data-k="'+k.replace(/"/g,'\\"')+'"]');if(el)el.focus({preventScroll:true})}
@@ -574,7 +580,7 @@ function capsPanel(){const f=S.cf,list=S.caps.list;
     h("p",{class:"hint"},list.length?"Gasten kiezen zelf een soort. Bij elke bestelling gaat het aantal omlaag, en komt het terug als je een bestelling weigert of de gast annuleert. Bij 0 is de soort op.":"Voeg de soorten toe die je in huis hebt. Dan kiest de gast er een bij het bestellen, en telt Moose het aantal automatisch af."),
     list.map(c=>h("div",{class:"caprow"+(c.n<=5?" low":"")},
       h("div",{class:"cn"},h("b",{},c.name),h("span",{class:"n","aria-live":"polite"},String(c.n)),h("small",{},c.n<=0?"op":c.n<=5?"bijna op":"")),
-      h("div",{class:"cctl"},capSel(c.str||"",STR_OPTS,v=>capsOp({set:{id:c.id,str:v===""?0:+v}}),"Sterkte van "+c.name),capSel(c.sys,SYS_OPTS,v=>capsOp({set:{id:c.id,sys:v}}),"Systeem van "+c.name)),
+      h("div",{class:"cctl"},capSel(c.str||"",STR_OPTS,v=>capsOp({set:{id:c.id,str:v===""?0:+v}}),"Sterkte van "+c.name),capSel(c.sys,SYS_OPTS,v=>capsOp({set:{id:c.id,sys:v}}),"Systeem van "+c.name),capSel(c.tip===false?"0":"1",[["1","Siroop-tips aan"],["0","Geen siroop-tips"]],v=>capsOp({set:{id:c.id,tip:v==="1"}}),"Siroopsuggesties bij "+c.name)),
       h("div",{class:"cctl"},h("button",{class:"stk","aria-label":"Eén minder van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:Math.max(0,c.n-1)}})},"−1"),h("button",{class:"stk","aria-label":"Eén erbij van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:c.n+1}})},"+1"),h("button",{class:"stk","aria-label":"Tien erbij van "+c.name,onclick:()=>capsOp({set:{id:c.id,n:c.n+10}})},"+10"),
         S.capDel===c.id?[h("button",{class:"stk",style:"background:var(--tomato);border-color:var(--tomato);color:#fff",onclick:()=>{S.capDel="";capsOp({del:c.id})}},"Zeker wissen?"),h("button",{class:"stk",onclick:()=>{S.capDel="";renderBarista()}},"Nee")]:h("button",{class:"stk",onclick:()=>{S.capDel=c.id;renderBarista()}},"Verwijder")))),
     h("div",{class:"capadd"},h("h4",{},"Soort toevoegen"),
@@ -582,10 +588,15 @@ function capsPanel(){const f=S.cf,list=S.caps.list;
         h("input",{type:"number",id:"cfa",class:"field",value:f.n,placeholder:"Aantal",min:"0",max:"9999",inputmode:"numeric","aria-label":"Aantal capsules",oninput:e=>{f.n=e.target.value}}),
         capSel(f.str,STR_OPTS,v=>{f.str=v},"Sterkte"),capSel(f.sys,SYS_OPTS,v=>{f.sys=v},"Systeem"),
         h("button",{class:"stk",onclick:()=>{if(!f.name.trim()||f.n===""){toast("Vul een naam en een aantal in");return}capsOp({add:{name:f.name,n:f.n,str:f.str===""?0:+f.str,sys:f.sys}},()=>{S.cf={name:"",n:"",str:"",sys:""};renderBarista()})}},"Toevoegen"))))}
+function tipsPanel(){
+  const opts=[["","Geen suggestie"]].concat(SYRUP.filter(x=>x[1]).map(x=>[x[0],x[0]]));
+  return h("div",{class:"caps"},h("h3",{},"Siroopsuggesties"),
+    h("p",{class:"hint"},"Bij het bestellen krijgt de gast een tip met een siroop die goed past. Per capsule kun je de tips uitzetten, bijvoorbeeld bij een sterke ristretto."),
+    DRINKS.map(d=>h("div",{class:"tiprow"},h("b",{},d.n),capSel(S.tips[d.n]||"",opts,v=>api("PATCH","/api/tips",{drink:d.n,syrup:v}).then(poll).catch(e=>toast(e.message)),"Suggestie bij "+d.n))))}
 function stockPanel(){
   const grp=(t,items)=>[h("h3",{},t),h("div",{class:"stkrow"},items.map(([label,key])=>{const o=S.off.includes(key);
     return h("button",{class:"stk","aria-pressed":o,onclick:()=>toggleOff(key)},h("span",{},label),o?h("em",{},"op"):null)}))];
-  return h("section",{class:"stock","aria-label":"Voorraad"},h("h2",{},"Voorraad"),capsPanel(),h("p",{class:"hint"},"Tik aan wat op is. Klanten kunnen het dan niet meer kiezen."),
+  return h("section",{class:"stock","aria-label":"Voorraad"},h("h2",{},"Voorraad"),capsPanel(),tipsPanel(),h("p",{class:"hint"},"Tik aan wat op is. Klanten kunnen het dan niet meer kiezen."),
     grp("Drankjes",DRINKS.map(d=>[d.n,"drink:"+d.n])),grp("Melk",MILK.filter(m=>m!=="Geen melk").map(m=>[m,"milk:"+m])),
     grp("Siroop",SYRUP.filter(x=>x[1]).map(x=>[x[0],"syrup:"+x[0]])),grp("Suiker",[["Suiker","sugar:Suiker"],["Zoetstof","sugar:Zoetstof"]]))}
 function renderBarista(){
@@ -626,7 +637,7 @@ async function poll(){
   try{const r=await fetch("/api/orders",{cache:"no-store"});if(!r.ok)throw new Error(r.status);const j=await r.json();
     S.skew=j.now-Date.now();S.needPin=!!j.pin;S.pushAvail=!!j.push;S.prefix=j.prefix||"";S.ntfy=j.ntfy||S.ntfy;if(!S.needPin)S.pinOk=true;
     if(S.needPin&&!S.pinOk&&!S.pinChecking&&LS("moose-pin")){S.pinChecking=true;api("POST","/api/pin",{pin:LS("moose-pin")}).then(()=>{S.pinOk=true;if(S.view==="barista")renderBarista()}).catch(()=>{}).finally(()=>{S.pinChecking=false})}
-    S.caps=j.caps&&Array.isArray(j.caps.list)?j.caps:{list:[]};const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps]);
+    S.caps=j.caps&&Array.isArray(j.caps.list)?j.caps:{list:[]};S.tips=j.tips||{};const ko=JSON.stringify([j.off||[],S.prefix,S.needPin,S.pushAvail,S.caps,S.tips]);
     if(S.pushAvail&&!S.push.checked)pushState();
     if(ko!==lastOff){lastOff=ko;S.off=j.off||[];fixSel();const typing=isTyping();paintHero(false);paintStrip(false);renderOpts();paintCta();paintNotif();if(S.view==="barista"&&!typing)renderBarista()}
     if(!S.online){S.online=true;$("#off").hidden=true}

@@ -14,7 +14,7 @@ const TYPES = {
   ".json": "application/json", ".webmanifest": "application/manifest+json"
 };
 
-let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = { list: [] };
+let orders = [], off = [], subs = [], vapid = null, users = [], sess = [], caps = { list: [] }, tips = null;
 const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, ""), REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const REDIS = !!(REDIS_URL && REDIS_TOKEN), KEY = "moose:state";
 const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization: "Bearer " + REDIS_TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(cmd) })
@@ -22,9 +22,19 @@ const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization
 // Capsulevoorraad: per soort een naam, sterkte (Nespresso-schaal 1 tot 13, 0 = niet ingevuld), systeem (Original of Vertuo) en aantal.
 // De gast kiest de soort bij het bestellen, en dat aantal gaat dan omlaag.
 const SYSTEMS = ["Original", "Vertuo"];
+// Siroopsuggesties: per drankje een siroop die goed past. De barista past dit aan, en zet het per capsule uit (bijvoorbeeld bij een sterke ristretto).
+const DRINK_NAMES = ["Espresso", "Americano", "Cappuccino", "Latte", "Latte macchiato", "Flat white", "Macchiato", "Cortado"];
+const SYRUPS = ["Pumpkin spice", "White mocha", "Hazelnoot"];
+const DEFAULT_TIPS = { "Latte": "Pumpkin spice", "Cappuccino": "Hazelnoot", "Latte macchiato": "White mocha" };
+function normTips(t) {
+  const src = t && typeof t === "object" ? t : DEFAULT_TIPS, out = {};
+  for (const d of DRINK_NAMES) if (SYRUPS.includes(src[d])) out[d] = src[d];
+  return out;
+}
+tips = normTips();
 function normCaps(c) {
   const list = c && Array.isArray(c.list) ? c.list.filter(x => x && typeof x.id === "string" && typeof x.name === "string" && Number.isInteger(x.n))
-    .map(x => ({ id: x.id, name: x.name.slice(0, 30), n: x.n, str: Number.isInteger(x.str) && x.str >= 1 && x.str <= 13 ? x.str : 0, sys: SYSTEMS.includes(x.sys) ? x.sys : "" })).slice(0, 30) : [];
+    .map(x => ({ id: x.id, name: x.name.slice(0, 30), n: x.n, str: Number.isInteger(x.str) && x.str >= 1 && x.str <= 13 ? x.str : 0, sys: SYSTEMS.includes(x.sys) ? x.sys : "", tip: x.tip !== false })).slice(0, 30) : [];
   return { list };
 }
 function capLow(c, before) {
@@ -39,7 +49,7 @@ async function loadState() {
         const raw = await redis(["GET", KEY]), st = raw ? JSON.parse(raw) : {};
         orders = Array.isArray(st.orders) ? st.orders : []; off = Array.isArray(st.off) ? st.off : [];
         subs = Array.isArray(st.subs) ? st.subs : []; vapid = st.vapid || null;
-        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = normCaps(st.caps);
+        users = Array.isArray(st.users) ? st.users : []; sess = Array.isArray(st.sess) ? st.sess : []; caps = normCaps(st.caps); tips = normTips(st.tips);
         return console.log("  Opslag: online (Upstash), " + orders.length + " bestellingen geladen");
       } catch (e) {
         console.log("  Opslag: Upstash niet bereikbaar (" + e.message + "), poging " + i + " van 4");
@@ -49,7 +59,7 @@ async function loadState() {
     }
   }
   try { orders = JSON.parse(fs.readFileSync(DB, "utf8")); } catch (e) {}
-  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = normCaps(c.caps); } catch (e) {}
+  try { const c = JSON.parse(fs.readFileSync(CFG, "utf8")); off = c.off || []; subs = c.subs || []; vapid = c.vapid || null; users = c.users || []; sess = c.sess || []; caps = normCaps(c.caps); tips = normTips(c.tips); } catch (e) {}
 }
 async function load() { await loadState(); ensureVapid(); }
 function writer(file, get) {
@@ -57,8 +67,8 @@ function writer(file, get) {
   return () => { clearTimeout(t); t = setTimeout(() => fs.writeFile(file + ".tmp", JSON.stringify(get()), e => { if (!e) fs.rename(file + ".tmp", file, () => {}); }), 100); };
 }
 let rt = null;
-const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
-const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid, users, sess, caps }));
+const saveRemote = () => { if (!REDIS) return; clearTimeout(rt); rt = setTimeout(() => redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps, tips })]).catch(e => console.log("Opslaan online mislukt: " + e.message)), 400); };
+const saveLocal = writer(DB, () => orders), saveCfgLocal = writer(CFG, () => ({ off, subs, vapid, users, sess, caps, tips }));
 const save = () => { if (REDIS) saveRemote(); else saveLocal(); }, saveCfg = () => { if (REDIS) saveRemote(); else saveCfgLocal(); };
 
 // ---------- meldingen via ntfy ----------
@@ -203,8 +213,8 @@ const readBody = req => new Promise((ok, no) => {
 // Bij afsluiten (bijvoorbeeld tijdens een nieuwe uitrol) eerst alles wegschrijven, zodat de laatste wijziging niet verloren gaat.
 async function flushAndExit() {
   try {
-    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps })]); }
-    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid, users, sess, caps })); }
+    if (REDIS) { clearTimeout(rt); await redis(["SET", KEY, JSON.stringify({ orders, off, subs, vapid, users, sess, caps, tips })]); }
+    else { fs.writeFileSync(DB, JSON.stringify(orders)); fs.writeFileSync(CFG, JSON.stringify({ off, subs, vapid, users, sess, caps, tips })); }
   } catch (e) { console.log("Wegschrijven bij afsluiten mislukt: " + e.message); }
   process.exit(0);
 }
@@ -215,7 +225,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === "/healthz") return send(res, 200, { ok: true });
     if (url.pathname === "/api/orders" && req.method === "GET")
-      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps });
+      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps, tips });
     if (url.pathname === "/api/pin" && req.method === "POST") {
       const b = await readBody(req);
       if (blocked(req)) return deny(res, req);
@@ -300,13 +310,14 @@ const server = http.createServer(async (req, res) => {
       const fields = (o, c) => {
         if (o.name !== undefined) { const nm = s(o.name, 30).trim(); if (!nm) return "Geef een naam"; if (caps.list.some(x => x !== c && x.name.toLowerCase() === nm.toLowerCase())) return "Die soort bestaat al"; c.name = nm; }
         if (o.str !== undefined) { const v = num(o.str, 13); if (v === null) return "ongeldige sterkte"; c.str = v; }
+        if (o.tip !== undefined) c.tip = o.tip !== false;
         if (o.sys !== undefined) { if (o.sys !== "" && !SYSTEMS.includes(o.sys)) return "ongeldig systeem"; c.sys = o.sys; }
         return "";
       };
       if (b.add) {
         const n = num(b.add.n, 9999); if (n === null) return send(res, 400, { error: "Geef een aantal" });
         if (caps.list.length >= 30) return send(res, 400, { error: "Er kunnen maximaal 30 soorten bij" });
-        const c = { id: crypto.randomBytes(4).toString("hex"), name: "", n, str: 0, sys: "" };
+        const c = { id: crypto.randomBytes(4).toString("hex"), name: "", n, str: 0, sys: "", tip: true };
         if (b.add.name === undefined) return send(res, 400, { error: "Geef een naam" });
         const e = fields(b.add, c); if (e) return send(res, e.startsWith("Die") ? 409 : 400, { error: e });
         caps.list.push(c);
@@ -320,6 +331,14 @@ const server = http.createServer(async (req, res) => {
       } else return send(res, 400, { error: "niets te doen" });
       saveCfg();
       return send(res, 200, { caps });
+    }
+    if (url.pathname === "/api/tips" && req.method === "PATCH") {
+      if (!authed(req)) return deny(res, req);
+      const b = await readBody(req);
+      if (!DRINK_NAMES.includes(b.drink) || (b.syrup !== "" && !SYRUPS.includes(b.syrup))) return send(res, 400, { error: "ongeldige suggestie" });
+      if (b.syrup === "") delete tips[b.drink]; else tips[b.drink] = b.syrup;
+      saveCfg();
+      return send(res, 200, { tips });
     }
     if (url.pathname === "/api/off" && req.method === "PATCH") {
       if (!authed(req)) return deny(res, req);

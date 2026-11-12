@@ -59,6 +59,10 @@ opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geh
   Bij 5 of minder krijg je een melding en staat de soort in het rood, bij 0 kan de gast die soort niet meer kiezen. Bij elke bestelling ziet de barista welke capsule gekozen is.
   Heb je geen soorten ingevoerd, dan verandert er niets aan het bestellen.
 
+- **Siroopsuggesties:** bij het bestellen krijgt de gast een tip met een siroop die past bij het gekozen drankje (standaard: latte met pumpkin spice,
+  cappuccino met hazelnoot, latte macchiato met white mocha). De barista past dat per drankje aan onder Voorraad, en zet de tips per capsule uit
+  (bijvoorbeeld bij een sterke ristretto). Is de siroop op of heeft de gast al een siroop gekozen, dan verschijnt er geen tip.
+
 ## Webmeldingen op de telefoon
 Moose kan meldingen sturen naar de telefoon, ook als de app dicht is. Dat vraagt een https-adres (een host zoals Render geeft dat)
 en op iPhone iOS 16.4 of nieuwer met Moose op het beginscherm (Safari, Deel, "Zet op beginscherm"). Er is niets extra te installeren
