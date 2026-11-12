@@ -92,6 +92,54 @@ body[data-view=barista] .only-k,body[data-view=stats] .only-k,body[data-view=kla
 .swatches{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
 .sw{width:32px;height:32px;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1.5px rgba(0,0,0,.3) inset}
 .sw[aria-checked=true]{border-color:var(--butter);outline:2px solid var(--pine);outline-offset:1px}
+
+/* ---------- fun: ticket, mascotte, delen, liefde ---------- */
+@keyframes tin{from{transform:translateY(40px) rotate(-3deg) scale(.92);opacity:0}to{transform:none;opacity:1}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.tkov{position:fixed;inset:0;z-index:40;background:rgba(9,28,20,.94);display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top,0px)) 18px max(18px,env(safe-area-inset-bottom,0px));overflow:auto;animation:fadein .2s}
+.tkwrap{margin:auto 0;width:min(340px,100%);display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.ticket{filter:drop-shadow(0 18px 28px rgba(0,0,0,.4));animation:tin .55s cubic-bezier(.2,.9,.25,1.15);color:var(--pine)}
+.tk-a,.tk-b{background:#FBF3DC;padding:18px 22px;position:relative}
+.tk-a{border-radius:18px 18px 0 0;-webkit-mask:radial-gradient(circle 11px at 0 100%,#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 11px at 100% 100%,#0000 97%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 11px at 0 100%,#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 11px at 100% 100%,#0000 97%,#000) right/51% 100% no-repeat}
+.tk-b{border-radius:0 0 18px 18px;-webkit-mask:radial-gradient(circle 11px at 0 0,#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 11px at 100% 0,#0000 97%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 11px at 0 0,#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 11px at 100% 0,#0000 97%,#000) right/51% 100% no-repeat;margin-top:0}
+.tk-b::before{content:"";position:absolute;left:14px;right:14px;top:0;border-top:2px dashed rgba(23,64,46,.35)}
+.tk-h{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.tk-h svg{width:44px;height:37px;color:var(--pine);--hole:#FBF3DC;flex:none}
+.tk-no{font:800 56px/1 var(--display);letter-spacing:-.03em;margin:10px 0 2px}
+.tk-who{font-size:15px;font-weight:700;opacity:.75}
+.tk-dr{font:800 26px/1.1 var(--display);letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance}
+.tk-l{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
+.tk-l span{opacity:.6;font-weight:600}.tk-l b{font-weight:700;text-align:right}
+.tk-bar{display:block;width:100%;height:46px;margin:6px 0 8px}
+.tk-f{display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:700;opacity:.65;letter-spacing:.04em}
+.tk-tag{text-align:center;font-weight:800;color:var(--pine);margin-top:10px;font-size:14px}
+.tkbtns{display:flex;gap:10px}.tkbtns .btn{flex:1;justify-content:center;padding:13px}
+.tkbtns .btn:not(.sec){background:var(--butter);color:var(--pine)}
+.tkbtns .btn.sec{background:transparent;color:var(--butter);border:2px solid rgba(244,211,94,.6)}
+.tkx{align-self:center;color:var(--butter);background:none;border:0;font:700 14px var(--display);opacity:.85;padding:6px 12px;text-decoration:underline}
+.ticket-open{margin-top:8px}
+.peek{position:fixed;right:0;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:flex-end;gap:6px;transform:translateX(115%);transition:transform .5s cubic-bezier(.2,.9,.3,1.1);pointer-events:none;max-width:calc(100vw - 8px)}
+.peek.on{transform:none;pointer-events:auto}
+.peek .say{background:var(--butter);color:var(--pine);font-weight:800;font-size:14px;line-height:1.25;padding:10px 14px;border-radius:16px 16px 4px 16px;max-width:210px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.peek button{background:none;border:0;padding:0;line-height:0}
+.peek svg{width:84px;height:70px;color:var(--butter);--hole:#17402E;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3))}
+.peek.on svg{animation:wob 2.4s ease-in-out .5s infinite}
+@keyframes wob{0%,100%{transform:rotate(0)}30%{transform:rotate(-7deg)}60%{transform:rotate(5deg)}}
+body[data-view=barista] .peek{display:none}
+.stmoose{display:flex;align-items:center;gap:14px}
+.stmoose svg{width:74px;height:62px;color:var(--butter);--hole:#17402E;flex:none;animation:wob 4s ease-in-out infinite}
+.share{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 0}
+.love{display:inline-flex;align-items:center;gap:10px;background:var(--pine);color:var(--butter);border:0;border-radius:999px;padding:11px 20px 11px 16px;font:800 15px var(--display);letter-spacing:-.01em;box-shadow:0 5px 0 var(--pine-3),0 10px 22px rgba(15,44,32,.25);transition:transform .12s,box-shadow .12s;position:relative;opacity:1}
+.love:active{transform:translateY(3px);box-shadow:0 2px 0 var(--pine-3)}
+.love svg{width:22px;height:22px;color:var(--tomato);animation:beat 1.6s ease-in-out infinite;flex:none}
+.love small{display:block;font-size:11px;font-weight:700;opacity:.75;letter-spacing:.06em;text-transform:uppercase;line-height:1.1}
+.love span{display:block;text-align:left;line-height:1.15}
+.site2 .love{background:var(--butter);color:var(--pine);box-shadow:0 5px 0 rgba(0,0,0,.35)}
+.lovewrap{display:flex;justify-content:center;padding:6px 0 4px}
+@keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}45%{transform:scale(1.18)}}
+.fl{position:fixed;z-index:50;pointer-events:none;color:var(--tomato);animation:flt 1.4s ease-out forwards}
+@keyframes flt{from{transform:translate(0,0) scale(.5);opacity:1}to{transform:translate(var(--dx),-170px) scale(1.2);opacity:0}}
+@media(prefers-reduced-motion:reduce){.ticket,.peek,.peek.on svg,.stmoose svg,.love svg{animation:none}.peek{transition:none}.fl{display:none}}
 .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(0,0,0,.28) inset;flex:none}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.two .chip{justify-content:center;padding:13px;font-size:16px}
 .field{width:100%;border:2px solid var(--pine);background:var(--paper);border-radius:14px;padding:13px 14px;font:600 17px var(--display);color:var(--roast)}
@@ -282,8 +330,8 @@ body[data-view=stats] .stage{background:var(--pine);border-radius:0}
 .hrow .t{font-size:12px;opacity:.7;font-weight:600;line-height:1.2}.hrow .w{font-weight:800}.hrow .w small{display:block;font-weight:600;opacity:.75;font-size:13px}
 .hdet{padding:2px 2px 14px;display:grid;gap:6px;font-size:14px}.hdet div{display:flex;gap:10px}.hdet dt,.hdet span.k{flex:0 0 96px;opacity:.65;font-weight:600}
 .hdet .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-.site{margin:34px auto 0;padding:18px 0 4px;border-top:1px solid rgba(23,64,46,.16);text-align:center;font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--pine);opacity:.75;text-wrap:balance}
-.site2{max-width:1100px;margin:0 auto;padding:18px 18px calc(30px + var(--safe-b));border-top:0;color:var(--paper);opacity:.6}
+.site{margin:34px auto 0;padding:18px 0 8px;border-top:1px solid rgba(23,64,46,.16);text-align:center;font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--pine);text-wrap:balance}
+.site2{max-width:1100px;margin:0 auto;padding:18px 18px calc(30px + var(--safe-b));border-top:0;color:var(--paper)}
 body[data-view=klant] .site2{display:none}
 .capline{margin-top:4px;font-size:14px;font-weight:700;color:var(--butter)}
 </style>
@@ -324,12 +372,12 @@ body[data-view=klant] .site2{display:none}
   <div id="opts"></div>
   <section id="orders" class="orders" aria-label="Mijn bestellingen"></section>
   <div id="notif" class="notif"></div>
-  <footer class="site">Moose Coffee is een project gemaakt met liefde door Quinten</footer>
+  <footer class="site" id="ft1"></footer>
 </main>
 <div id="cta" class="cta only-k"></div>
 <main id="barista" class="q only-b"></main>
 <main id="stats" class="st only-s" aria-label="Statistieken"></main>
-<footer class="site site2">Moose Coffee is een project gemaakt met liefde door Quinten</footer>
+<footer class="site site2" id="ft2"></footer>
 
 <script>
 (()=>{
@@ -527,8 +575,8 @@ function paintCta(){
 async function order(){
   const f=S.f;
   if(!f.name.trim()){f.err=true;renderOpts();const n=$("#naam");if(n){n.focus({preventScroll:true});n.scrollIntoView({behavior:"smooth",block:"center"})}return}
-  try{await api("POST","/api/orders",{name:f.name.trim(),drink:f.drink,dbl:f.dbl,milk:f.drink==="Espresso"?"Geen melk":f.milk,syrup:f.syrup,sugar:f.sugar,note:f.note,cap:f.cap,by:uid});
-    f.note="";f.err=false;renderOpts();toast("Besteld! De barista ziet het meteen.");loadMe();await poll();$("#orders").scrollIntoView({behavior:"smooth",block:"start"})}
+  try{const r0=api("POST","/api/orders",{name:f.name.trim(),drink:f.drink,dbl:f.dbl,milk:f.drink==="Espresso"?"Geen melk":f.milk,syrup:f.syrup,sugar:f.sugar,note:f.note,cap:f.cap,by:uid});
+    const o=await r0;f.note="";f.err=false;renderOpts();toast("Besteld! De barista ziet het meteen.");loadMe();await poll();openTicket(o)}
   catch(e){toast("Bestellen mislukt: "+e.message)}}
 function capFrom(o){return (o.capId&&capOf(o.capId)?o.capId:(S.caps.list.find(c=>c.name===o.capName)||{}).id)||S.f.cap}
 function redo(o){Object.assign(S.f,{drink:o.drink,dbl:!!o.dbl,milk:o.milk,syrup:o.syrup,sugar:o.sugar,note:o.note||"",cap:capFrom(o)});
@@ -592,6 +640,7 @@ function orderCard(o){
     b.append(st,h("div",{class:"prog"},h("i",{"data-t":"bar","data-at":o.etaAt,"data-min":o.etaMin||5})));}
   else b.append(st);
   if(o.status==="nieuw")b.append(h("div",{class:"wait"},waitInfo(o)));
+  if(["nieuw","bezig","klaar"].includes(o.status))b.append(h("button",{class:"btn ghost ticket-open",onclick:()=>openTicket(o)},"Ticket "+tno(o)));
   if(o.status==="voorstel")b.append(h("div",{class:"note"},"Barista: "+(o.reply||"")),h("div",{class:"acts"},
     h("button",{class:"btn",onclick:()=>upd(o.id,{status:"nieuw",accepted:true})},"Voorstel aannemen"),h("button",{class:"btn ghost",onclick:()=>upd(o.id,{status:"weg"})},"Laat maar")));
   if(o.status==="nieuw")b.append(h("div",{class:"acts"},h("button",{class:"btn ghost",onclick:()=>upd(o.id,{status:"weg"})},"Annuleren")));
@@ -613,7 +662,7 @@ function renderOrders(){const list=mine(),box=$("#orders");
 /* ---------- barista ---------- */
 function job(o){
   const c=h("article",{class:"job"},h("div",{class:"th"},img(o.drink)));
-  const b=h("div",{},h("div",{class:"who"},o.name),h("div",{class:"spec"},title(o)+" · "+spec(o)));
+  const b=h("div",{},h("div",{class:"who"},o.name+" · "+tno(o)),h("div",{class:"spec"},title(o)+" · "+spec(o)));
   if(o.capName)b.append(h("div",{class:"capline"},"Capsule: "+[o.capName,o.capDeca?"DECA":"",o.capSys,o.capStr?"sterkte "+o.capStr:""].filter(Boolean).join(" · ")+(o.capN>1?" (2 capsules)":"")));
   if(o.status==="nieuw"||o.status==="voorstel")b.append(h("div",{class:"meta","data-t":"since","data-at":o.createdAt},ago(now()-o.createdAt)));
   if(o.note)b.append(h("div",{class:"qnote"},"Opmerking: "+o.note));
@@ -741,11 +790,12 @@ function renderStats(){
   const since=new Date(st.since).toLocaleDateString("nl-BE",{day:"numeric",month:"long",year:"numeric"});
   const dm=Math.max(1,...Object.values(st.drinks));
   fill(el,
-    h("div",{},h("h1",{},"Statistieken"),h("p",{class:"lead"},"Alle koffies sinds "+since+".")),
+    h("div",{class:"stmoose"},h("div",{},h("h1",{},"Statistieken"),h("p",{class:"lead"},"Alle koffies sinds "+since+".")),mooseSvg()),
     h("div",{class:"top2"},
       h("div",{class:"big"},h("b",{"aria-live":"polite"},String(st.total)),h("span",{},st.total===1?"koffie gemaakt":"koffies gemaakt"),h("small",{},st.caps+" capsules gebruikt")),
       cur?h("div",{class:"fact"},h("small",{},"Wist je dat…"),h("b",{},cur.v),h("small",{style:"letter-spacing:.04em;text-transform:none;font-size:15px;color:var(--pine);opacity:.75"},cur.k),h("p",{},cur.s),
         h("div",{class:"row"},h("span",{class:"cnt"},(fi+1)+" van "+F.length),h("button",{class:"btn",onclick:()=>{let n;do{n=Math.floor(Math.random()*F.length)}while(F.length>1&&n===fi);fi=n;renderStats()}},"Nog een weetje"))):null),
+    h("div",{class:"share"},h("button",{class:"btn",onclick:()=>shareStats(st)},"Deel de cijfers"),h("span",{class:"lead",style:"margin:0"},"Gebruik "+HASH)),
     h("div",{class:"tiles"},
       h("div",{class:"tile"},h("b",{},String(st.today)),h("span",{},"vandaag")),
       h("div",{class:"tile"},h("b",{},String(st.dbl)),h("span",{},"dubbele")),
@@ -835,7 +885,86 @@ function setView(v){S.view=v;LS("moose-view",v);document.body.dataset.view=v;
 $("#tk").onclick=()=>setView("klant");$("#tb").onclick=()=>setView("barista");$("#ts").onclick=()=>setView("stats");
 setInterval(()=>{if(S.view==="stats")loadStats()},20000);
 
-buildStrip();$("#qnext").onclick=nextQuote;nextQuote();paintHero(true);paintStrip(true);renderOpts();paintCta();renderOrders();setView(S.view);
+
+/* ---------- fun: ticket, mascotte, delen ---------- */
+const HASH="#MooseCoffee";
+const tno=o=>"#"+String(100+parseInt(o.id.slice(-4),36)%900);
+const mooseSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 120 100");s.setAttribute("aria-hidden","true");s.innerHTML='<use href="#moose"/>';return s};
+const heartSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("aria-hidden","true");s.innerHTML='<path fill="currentColor" d="M12 21.2l-1.4-1.3C5.4 15.2 2 12.1 2 8.3 2 5.2 4.4 3 7.4 3c1.7 0 3.4.8 4.6 2.1C13.2 3.8 14.9 3 16.6 3 19.6 3 22 5.2 22 8.3c0 3.8-3.4 6.9-8.6 11.6L12 21.2z"/>';return s};
+function barcode(id,color){let x=0,r="";for(let i=0;i<id.length*2+8;i++){const c=id.charCodeAt(i%id.length)+i*7,w=1+c%3;if(i%2===0)r+='<rect x="'+x+'" y="0" width="'+w+'" height="46"/>';x+=w+1+(c>>2)%2}
+  return '<svg class="tk-bar" viewBox="0 0 '+x+' 46" preserveAspectRatio="none" fill="'+(color||"#17402E")+'" aria-hidden="true">'+r+'</svg>'}
+function ticketLines(o){const l=[["Melk",o.milk],["Siroop",o.syrup],["Suiker",o.sugar]];
+  if(o.capName)l.push(["Capsule",[o.capName,o.capDeca?"Deca":"",o.capStr?"sterkte "+o.capStr:""].filter(Boolean).join(" · ")]);
+  if(o.note)l.push(["Opmerking",o.note]);
+  return l.filter(x=>x[1]&&!(x[0]==="Melk"&&x[1]==="Geen melk"&&o.drink==="Espresso"))}
+function shareText(o){return "Mijn "+title(o).toLowerCase()+" bij Moose Coffee, ticket "+tno(o)+" "+HASH+" "+location.origin}
+function drawTicket(o){return new Promise(res=>{
+  const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+  const FF='"Bricolage Grotesque",system-ui,sans-serif';
+  g.fillStyle="#17402E";g.fillRect(0,0,W,H);
+  g.fillStyle="#1F5A3F";g.beginPath();g.arc(W,0,520,0,7);g.fill();g.beginPath();g.arc(0,H,420,0,7);g.fill();
+  const tw=760,tx=(W-tw)/2,ty=150,th=980,r=36,cut=ty+640;
+  g.fillStyle="#FBF3DC";g.beginPath();g.roundRect(tx,ty,tw,th,r);g.moveTo(tx+28,cut);g.arc(tx,cut,28,0,7);g.moveTo(tx+tw+28,cut);g.arc(tx+tw,cut,28,0,7);g.fill("evenodd");
+  g.strokeStyle="rgba(23,64,46,.35)";g.lineWidth=4;g.setLineDash([16,12]);g.beginPath();g.moveTo(tx+44,cut);g.lineTo(tx+tw-44,cut);g.stroke();g.setLineDash([]);
+  g.fillStyle="#17402E";g.textBaseline="alphabetic";
+  g.font="800 26px "+FF;g.fillText("MOOSE COFFEE  ·  TICKET",tx+56,ty+84);
+  g.font="800 190px "+FF;g.fillText(tno(o),tx+52,ty+290);
+  g.font="700 38px "+FF;g.globalAlpha=.75;g.fillText(o.name,tx+56,ty+352);g.globalAlpha=1;
+  g.font="800 68px "+FF;g.fillText(title(o),tx+56,ty+450,tw-112);
+  let y=ty+510;g.font="600 32px "+FF;
+  for(const [k,v] of ticketLines(o).slice(0,4)){g.globalAlpha=.6;g.fillText(k,tx+56,y);g.globalAlpha=1;g.font="700 32px "+FF;g.textAlign="right";g.fillText(String(v).slice(0,34),tx+tw-56,y);g.textAlign="left";g.font="600 32px "+FF;y+=48}
+  const done=()=>{
+    g.fillStyle="#17402E";g.font="800 34px "+FF;g.textAlign="center";g.fillText(HASH,W/2,cut+250);
+    g.font="700 26px "+FF;g.globalAlpha=.65;g.fillText(stT(o.createdAt).toUpperCase(),W/2,cut+310);g.globalAlpha=1;g.textAlign="left";
+    const bi=new Image();bi.onload=()=>{g.drawImage(bi,tx+56,cut+60,tw-112,110);c.toBlob(b=>res(b),"image/png")};
+    bi.onerror=()=>c.toBlob(b=>res(b),"image/png");
+    bi.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(barcode(o.id).replace('class="tk-bar"','xmlns="http://www.w3.org/2000/svg" width="600" height="110"'));
+  };
+  const sym=document.getElementById("moose"),im=new Image();
+  im.onload=()=>{g.drawImage(im,tx+tw-56-130,ty+36,130,108);done()};im.onerror=done;
+  im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" width="260" height="216" style="color:#17402E;--hole:#FBF3DC">'+sym.innerHTML+'</svg>')})}
+async function shareTicket(o,btn){
+  const old=btn.textContent;btn.disabled=true;btn.textContent="Even maken…";
+  try{try{await document.fonts.ready}catch(e){}
+    const blob=await drawTicket(o),file=new File([blob],"moose-ticket-"+tno(o).slice(1)+".png",{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:shareText(o)})}
+    else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      try{await navigator.clipboard.writeText(shareText(o))}catch(e){}toast("Ticket bewaard. Tekst met "+HASH+" is gekopieerd.")}}
+  catch(e){if(e&&e.name!=="AbortError")toast("Delen lukte niet")}
+  btn.disabled=false;btn.textContent=old}
+function closeTicket(){const e=document.getElementById("tkov");if(e)e.remove();document.removeEventListener("keydown",tkKey)}
+function tkKey(e){if(e.key==="Escape")closeTicket()}
+function openTicket(o){closeTicket();
+  const bar=document.createElement("div");bar.innerHTML=barcode(o.id);
+  const lines=ticketLines(o).map(([k,v])=>[h("span",{},k),h("b",{},String(v))]);
+  const share=h("button",{class:"btn",onclick:e=>shareTicket(o,e.currentTarget)},"Deel ticket");
+  const ov=h("div",{class:"tkov",id:"tkov",role:"dialog","aria-modal":"true","aria-label":"Ticket "+tno(o),onclick:e=>{if(e.target===ov||e.target.classList.contains("tkwrap"))closeTicket()}},
+    h("div",{class:"tkwrap"},
+      h("div",{class:"ticket"},
+        h("div",{class:"tk-a"},h("div",{class:"tk-h"},h("span",{},"Moose Coffee · Ticket"),mooseSvg()),h("div",{class:"tk-no"},tno(o)),h("div",{class:"tk-who"},o.name),h("div",{class:"tk-dr"},title(o)),h("div",{class:"tk-l"},...lines.flat())),
+        h("div",{class:"tk-b"},bar.firstChild,h("div",{class:"tk-f"},h("span",{},stT(o.createdAt)),h("span",{},o.id.toUpperCase().slice(-6))),h("div",{class:"tk-tag"},HASH))),
+      h("div",{class:"tkbtns"},share,h("button",{class:"btn sec",onclick:()=>{const t=shareText(o);try{navigator.clipboard.writeText(t).then(()=>toast("Tekst gekopieerd"),()=>toast("Kopiëren lukte niet"))}catch(e){toast("Kopiëren lukte niet")}}},"Kopieer tekst")),
+      h("button",{class:"tkx",onclick:closeTicket},"Sluiten")));
+  document.body.append(ov);document.addEventListener("keydown",tkKey);const b=ov.querySelector(".btn");if(b)b.focus({preventScroll:true})}
+
+/* mascotte */
+const MOOSE_SAYS=["Koffie? Ik zeg niet nee.","Psst… probeer eens een cortado.","Wist je dat een eland geen espresso mag? Ik drink hem toch.","Dubbel is ook gewoon enkel, maar dan meer.","Mooi gekozen.","Lekker bezig!","Ik hou de barista in de gaten.","Tijd voor een pauze?","Deel je koffie met "+HASH+"!"];
+let peekT,peekHide,peekEl;
+function peek(msg,ms){
+  if(S.view==="barista"||document.getElementById("tkov"))return;
+  if(!peekEl){peekEl=h("div",{class:"peek",role:"status"},h("div",{class:"say"}),h("button",{"aria-label":"Moose, tik voor nog een zin",onclick:()=>peek(null,6000)},mooseSvg()));document.body.append(peekEl)}
+  peekEl.querySelector(".say").textContent=msg||MOOSE_SAYS[Math.floor(Math.random()*MOOSE_SAYS.length)];
+  peekEl.classList.add("on");clearTimeout(peekHide);peekHide=setTimeout(()=>peekEl.classList.remove("on"),ms||5200)}
+function schedulePeek(){clearTimeout(peekT);peekT=setTimeout(()=>{if(!document.hidden)peek();schedulePeek()},45000+Math.random()*60000)}
+document.querySelector(".brand").addEventListener("click",e=>{if(e.metaKey||e.ctrlKey)return;e.preventDefault();peek(null,4500)});
+function hearts(from){const r=from.getBoundingClientRect();
+  for(let i=0;i<9;i++){const s=heartSvg();s.setAttribute("class","fl");s.style.cssText="left:"+(r.left+r.width/2-9+(Math.random()*60-30))+"px;top:"+(r.top+4)+"px;width:"+(14+Math.random()*14)+"px;height:auto;--dx:"+(Math.random()*120-60)+"px;animation-delay:"+(i*70)+"ms";document.body.append(s);setTimeout(()=>s.remove(),1800)}}
+function loveBtn(){return h("div",{class:"lovewrap"},h("button",{class:"love",onclick:e=>{hearts(e.currentTarget);peek("Bedankt, Quinten! Dat is mijn baas.",4500)}},heartSvg(),h("span",{},h("small",{},"Moose Coffee, een project van"),"Gemaakt met liefde door Quinten")))}
+$("#ft1").append(loveBtn());$("#ft2").append(loveBtn());
+async function shareStats(st){const txt="Moose Coffee heeft al "+st.total+(st.total===1?" koffie":" koffies")+" gemaakt "+HASH+" "+location.origin;
+  try{if(navigator.share){await navigator.share({text:txt})}else{await navigator.clipboard.writeText(txt);toast("Tekst met "+HASH+" gekopieerd")}}catch(e){}}
+
+buildStrip();$("#qnext").onclick=nextQuote;schedulePeek();setTimeout(()=>peek("Welkom bij Moose! Wat mag het zijn?",4500),2500);nextQuote();paintHero(true);paintStrip(true);renderOpts();paintCta();renderOrders();setView(S.view);
 loadMe();renderAcct();poll();setInterval(poll,2000);setInterval(tick,1000);setInterval(renderOrders,30000);
 })();
 </script>
