@@ -96,6 +96,15 @@ body[data-view=barista] .only-k,body[data-view=stats] .only-k,body[data-view=kla
 /* ---------- fun: ticket, mascotte, delen, liefde ---------- */
 @keyframes tin{from{transform:translateY(40px) rotate(-3deg) scale(.92);opacity:0}to{transform:none;opacity:1}}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
+.shut{background:var(--butter);color:var(--pine);border-radius:22px;padding:18px 20px;display:flex;gap:14px;align-items:center;margin:14px 0 16px;box-shadow:0 6px 0 var(--pine-3)}
+.shut[hidden]{display:none}
+.shut svg{width:70px;height:58px;color:var(--pine);--hole:var(--butter);flex:none}
+.shut b{display:block;font:800 21px/1.15 var(--display);letter-spacing:-.02em;margin-bottom:4px}
+.shut p{margin:0;font-weight:600;font-size:15px}
+.shopsw{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(244,211,94,.1);border:2px solid rgba(244,211,94,.35);border-radius:18px;padding:12px 16px;margin:0 0 14px}
+.shopsw b{display:block;font-size:16px}.shopsw small{opacity:.75;font-size:13px}
+.shopsw button{border:0;border-radius:999px;padding:10px 18px;font:800 15px var(--display);background:#4C8A5F;color:#fff}
+.shopsw button[aria-pressed=true]{background:var(--tomato)}
 .tkov{position:fixed;inset:0;z-index:40;background:rgba(9,28,20,.94);display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top,0px)) 18px max(18px,env(safe-area-inset-bottom,0px));overflow:auto;animation:fadein .2s}
 .tkwrap{margin:auto 0;width:min(340px,100%);display:flex;flex-direction:column;gap:14px;align-items:stretch}
 .ticket{filter:drop-shadow(0 18px 28px rgba(0,0,0,.4));animation:tin .55s cubic-bezier(.2,.9,.25,1.15);color:var(--pine)}
@@ -357,6 +366,7 @@ body[data-view=klant] .site2{display:none}
       <button role="tab" id="tb" aria-selected="false">Barista</button>
     </div>
   </div>
+  <section id="shut" class="shut only-k" aria-live="polite" hidden></section>
   <section class="hero only-k" aria-label="Gekozen drankje">
     <figure class="shot">
       <div class="photo"><img id="himg" alt=""></div>
@@ -568,10 +578,13 @@ function renderOpts(){
   if(k){const el=box.querySelector('[data-k="'+k.replace(/"/g,'\\"')+'"]');if(el)el.focus({preventScroll:true})}
   if(keepId){const el=document.getElementById(keepId);if(el){el.focus({preventScroll:true});try{el.setSelectionRange(selS,selE)}catch(e){}}}
 }
+const shopShut=()=>S.off.includes("shop:closed");
+function paintShut(){const e=$("#shut"),c=shopShut();e.hidden=!c;if(!c){e.replaceChildren();return}
+  if(e.dataset.on==="1")return;e.dataset.on="1";e.replaceChildren(mooseSvg(),h("div",{},h("b",{},"Ons winkeltje is gesloten"),h("p",{},"Nog even geduld, onze moose is onderweg!")))}
 function paintCta(){
-  const f=S.f;$("#cta").replaceChildren(h("div",{class:"cta-in"},
+  const f=S.f;if(!shopShut())$("#shut").dataset.on="";paintShut();$("#cta").replaceChildren(h("div",{class:"cta-in"},
     h("div",{class:"cta-t"},h("b",{},(f.name.trim()?f.name.trim()+": ":"")+title(f)),h("span",{},spec(f))),
-    h("button",{class:"go",disabled:isOff("drink",f.drink)||capBad(f),onclick:order},S.caps.list.length&&!S.caps.list.some(c=>c.n>0)?"Capsules op":capBad(f)?"Kies een capsule":"Bestel")))}
+    h("button",{class:"go",disabled:shopShut()||isOff("drink",f.drink)||capBad(f),onclick:order},shopShut()?"Gesloten":S.caps.list.length&&!S.caps.list.some(c=>c.n>0)?"Capsules op":capBad(f)?"Kies een capsule":"Bestel")))}
 async function order(){
   const f=S.f;
   if(!f.name.trim()){f.err=true;renderOpts();const n=$("#naam");if(n){n.focus({preventScroll:true});n.scrollIntoView({behavior:"smooth",block:"center"})}return}
@@ -742,6 +755,7 @@ function renderBarista(){
   const sum=wait.length+busy.length?wait.length+" wachtend, "+busy.length+" in de maak":"Alles is gemaakt";
   fill(el,
     h("div",{class:"qhead"},h("div",{},h("h1",{},"Barista"),h("p",{},sum)),h("button",{class:"top-btn",id:"snd","aria-pressed":S.sound,onclick:()=>{S.sound=!S.sound;LS("moose-sound",S.sound?"1":"0");if(S.sound)beep();renderBarista()}},S.sound?"Geluid aan":"Geluid uit")),
+    h("div",{class:"shopsw"},h("div",{},h("b",{},shopShut()?"Winkel is gesloten":"Winkel is open"),h("small",{},shopShut()?"Gasten kunnen niet bestellen.":"Gasten kunnen bestellen.")),h("button",{"aria-pressed":shopShut(),onclick:()=>toggleOff("shop:closed")},shopShut()?"Open de winkel":"Sluit de winkel")),
     pushCard("barista"),
     busy.length?[h("h2",{},"In de maak"),h("div",{class:"cols"},busy.map(job))]:null,
     wait.length?[h("h2",{},"Wachtend"),h("div",{class:"cols"},wait.map(job))]:null,
@@ -953,7 +967,7 @@ let peekT,peekHide,peekEl;
 function peek(msg,ms){
   if(S.view==="barista"||document.getElementById("tkov"))return;
   if(!peekEl){peekEl=h("div",{class:"peek",role:"status"},h("div",{class:"say"}),h("button",{"aria-label":"Moose, tik voor nog een zin",onclick:()=>peek(null,6000)},mooseSvg()));document.body.append(peekEl)}
-  peekEl.querySelector(".say").textContent=msg||MOOSE_SAYS[Math.floor(Math.random()*MOOSE_SAYS.length)];
+  peekEl.querySelector(".say").textContent=shopShut()?"Nog even geduld, ik ben onderweg!":msg||MOOSE_SAYS[Math.floor(Math.random()*MOOSE_SAYS.length)];
   peekEl.classList.add("on");clearTimeout(peekHide);peekHide=setTimeout(()=>peekEl.classList.remove("on"),ms||5200)}
 function schedulePeek(){clearTimeout(peekT);peekT=setTimeout(()=>{if(!document.hidden)peek();schedulePeek()},45000+Math.random()*60000)}
 document.querySelector(".brand").addEventListener("click",e=>{if(e.metaKey||e.ctrlKey)return;e.preventDefault();peek(null,4500)});

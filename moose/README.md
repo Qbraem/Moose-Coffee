@@ -61,6 +61,7 @@ opmerking via ntfy.sh. Wie je onderwerpnaam kent, kan meelezen, dus houd die geh
 
 - **Ticket en delen:** na het bestellen krijgt de gast een ticket met nummer (zelfde nummer bij de barista), streepjescode en #MooseCoffee. "Deel ticket" maakt een afbeelding (deelmenu op de telefoon, anders een download) en je kunt de tekst kopiëren. Op de statistiekenpagina staat "Deel de cijfers".
 - **Mascotte:** de eland duikt af en toe op met een zinnetje (tik op het logo of op de eland voor een nieuwe). Hij zit ook op de statistiekenpagina. De liefdesknop onderaan laat hartjes opstijgen.
+- **Winkel open of gesloten:** bovenaan het baristascherm staat een knop om de winkel te sluiten. Gasten zien dan "Ons winkeltje is gesloten. Nog even geduld, onze moose is onderweg!", de bestelknop staat op Gesloten en bestellen wordt ook door de server geweigerd. Bestaande bestellingen lopen gewoon door.
 - **Siropen beheren:** in het baristascherm (onder Voorraad) voeg je nieuwe siropen toe met naam en kleur, en verwijder je siropen die je niet meer hebt. Met het label **Seizoen** krijgt een siroop een gele badge bij de gasten, handig voor tijdelijke smaken. Verwijder je een siroop, dan verdwijnen ook de tips en "op"-markeringen ervan.
 - **Siroopsuggesties:** bij het bestellen krijgt de gast een tip met een siroop die past bij het gekozen drankje (standaard: latte met pumpkin spice,
   cappuccino met hazelnoot, latte macchiato met white mocha). De barista past dat per drankje aan onder Voorraad, en zet de tips per capsule uit

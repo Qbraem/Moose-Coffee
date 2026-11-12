@@ -415,13 +415,14 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/off" && req.method === "PATCH") {
       if (!authed(req)) return deny(res, req);
       const b = await readBody(req), key = String(b.item || "");
-      if (!/^(drink|milk|syrup|sugar):[\w \-]{1,30}$/.test(key)) return send(res, 400, { error: "ongeldig item" });
+      if (!(key === "shop:closed" || /^(drink|milk|syrup|sugar):[\w \-]{1,30}$/.test(key))) return send(res, 400, { error: "ongeldig item" });
       off = off.filter(x => x !== key);
       if (b.off) off.push(key);
       saveCfg();
       return send(res, 200, { off });
     }
     if (url.pathname === "/api/orders" && req.method === "POST") {
+      if (off.includes("shop:closed")) return send(res, 409, { error: "Ons winkeltje is gesloten. Nog even geduld, onze moose is onderweg!" });
       const b = await readBody(req), name = s(b.name, 40).trim();
       if (!name || !b.drink) return send(res, 400, { error: "naam en drankje zijn verplicht" });
       const need = b.dbl ? 2 : 1, cp = caps.list.length ? caps.list.find(x => x.id === b.cap) : null;
