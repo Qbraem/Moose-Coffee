@@ -1,0 +1,6 @@
+orders.json
+orders.json.tmp
+settings.json
+settings.json.tmp
+node_modules
+.env

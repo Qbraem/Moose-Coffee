@@ -67,6 +67,14 @@ In het baristascherm staat onderaan "Voorraad". Tik aan wat op is: een drankje, 
 suiker/zoetstof. Gasten zien het meteen grijs en doorgestreept en kunnen het niet meer kiezen. De server
 weigert zo'n bestelling ook. De keuze blijft bewaard in `settings.json`.
 
+## Nespresso-recepten voor de barista
+Op elke bestelling in het baristascherm staat een kaartje "Recept" met de hoeveelheden voor Nespresso Original en Vertuo:
+welke maat (Ristretto 25 ml, Espresso 40 ml, Lungo 110 ml, Double Espresso 80 ml) en hoeveel melk of heet water.
+Dubbel betekent bij Original 2 capsules en bij Vertuo een Double Espresso. De maten komen uit de officiële Nespresso-recepten
+(onder andere cappuccino 40 ml + 100 ml melk, flat white 40 ml + 90 ml melk, latte macchiato 220 ml melk, americano 25 ml + 125 ml water).
+Een * betekent dat Nespresso zelf geen maat geeft voor dat systeem en dat de hoeveelheid is afgeleid van een verwant recept.
+Je past de maten aan in `public/index.html`, bij `RCP`.
+
 ## Goed om te weten
 - Bestellingen staan in `orders.json` en de voorraad in `settings.json`, naast `server.js`. Ze blijven bewaard na een herstart.
 - Andere poort: `PORT=8080 node server.js`.

@@ -52,7 +52,6 @@ body[data-view=barista] .only-k,body[data-view=klant] .only-b{display:none!impor
 .photo::after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--grain);mix-blend-mode:soft-light;opacity:.45;box-shadow:inset 0 0 70px rgba(40,20,0,.3)}
 .photo img.dev{animation:dev .9s ease-out}
 @keyframes dev{0%{filter:grayscale(1) blur(10px) brightness(.55) contrast(.8)}55%{filter:grayscale(.35) blur(3px) brightness(.88)}100%{filter:none}}
-.stamp{position:absolute;right:10px;bottom:9px;z-index:2;font:400 15px var(--mono);color:var(--stamp);letter-spacing:.06em;text-shadow:0 0 6px rgba(255,138,31,.85),0 0 2px #ff5a00}
 .fnum{position:absolute;left:9px;top:8px;z-index:2;font:400 12px var(--mono);color:var(--stamp);text-shadow:0 0 5px rgba(255,138,31,.7)}
 .print figcaption{padding:12px 4px 14px;display:flex;flex-direction:column;gap:3px}
 .print figcaption b{font-size:30px;font-weight:800;letter-spacing:-.045em;line-height:1.05;font-variation-settings:"opsz" 72}
@@ -160,6 +159,11 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
 #off{background:var(--tomato);color:#fff;font-weight:700;font-size:14px;text-align:center;padding:8px 12px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
+.rcp{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.07);display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:14px;line-height:1.35}
+.rcp .lbl{grid-column:1/-1;font-size:12px;color:#93A995;letter-spacing:.06em;text-transform:uppercase;margin:0}
+.rcp b{font:400 12px var(--mono);color:var(--butter);padding-top:2px;letter-spacing:.04em}
+.rcp span:not(.lbl){overflow-wrap:anywhere}
+.rcpfoot{margin:18px 0 0;color:#93A995;font-size:13px;line-height:1.4}
 /* ---------- op / uitverkocht ---------- */
 .frame.off .ph{opacity:.28;filter:grayscale(1)}.frame.off small{opacity:.5;text-decoration:line-through}
 .chip.off{opacity:.45;border-style:dashed;text-decoration:line-through;cursor:not-allowed}
@@ -211,7 +215,7 @@ body[data-view=barista] .brand{color:var(--butter);--hole:#0C1A13}
   </div>
   <section class="hero only-k" aria-live="polite">
     <figure class="print">
-      <div class="photo"><img id="himg" alt=""><span class="fnum" id="fnum"></span><span class="stamp" id="stamp"></span></div>
+      <div class="photo"><img id="himg" alt=""><span class="fnum" id="fnum"></span></div>
       <figcaption><b id="hname"></b><span id="hdesc"></span></figcaption>
     </figure>
   </section>
@@ -272,6 +276,27 @@ function spec(o){const p=[];
   if(o.syrup&&o.syrup!=="Geen")p.push(o.syrup.toLowerCase()+" siroop");
   p.push(o.sugar==="Geen"?"geen suiker":o.sugar==="Zoetstof"?"zoetstof":o.sugar==="Extra sweet"?"extra sweet":"suiker: "+String(o.sugar).toLowerCase());
   return p.join(" · ")}
+/* ---------- Nespresso-recepten ---------- */
+// [capsule-maat, ml, afgeleid]. * = Nespresso geeft hier geen eigen maat, afgeleid van een verwant recept.
+const RCP={
+ "Espresso":{o:["Espresso",40,0],v:["Espresso",40,0]},
+ "Americano":{o:["Ristretto",25,0],v:["Espresso",40,1],water:{o:[125,0],v:[110,1]}},
+ "Cappuccino":{o:["Espresso",40,0],v:["Espresso",40,0],milk:{o:[100,0],v:[90,0],how:"opschuimen"}},
+ "Latte":{o:["Lungo",110,0],v:["Espresso",40,1],milk:{o:[110,1],v:[110,0],how:"opschuimen"}},
+ "Latte macchiato":{o:["Espresso",40,1],v:["Espresso",40,0],milk:{o:[220,1],v:[220,0],how:"opschuimen, eerst in het glas"}},
+ "Flat white":{o:["Espresso",40,0],v:["Espresso",40,0],milk:{o:[90,0],v:[90,0],how:"opschuimen"}},
+ "Macchiato":{o:["Espresso",40,0],v:["Espresso",40,0],milk:{o:[15,1],v:[15,1],how:"als melkschuim erbovenop",approx:1}},
+ "Cortado":{o:["Espresso",40,0],v:["Espresso",40,1],milk:{o:[100,0],v:[100,1],how:"opschuimen: 20 ml warme melk bij de koffie en 2 lepels schuim erbovenop"}}};
+function rcpLine(sys,o){const r=RCP[o.drink];if(!r)return null;const[n,ml,st]=r[sys],s=st?"*":"",dbl=!!o.dbl;
+  const cup=sys==="o"?(dbl?"2 × "+n+" (2 × "+ml+" ml)":"1 × "+n+" ("+ml+" ml)"):(dbl?(ml===40?"Double Espresso (80 ml)":"2 × "+n+" (2 × "+ml+" ml)"):n+" ("+ml+" ml)");
+  let t=cup+s;
+  if(r.water)t+=" + "+r.water[sys][0]+" ml heet water"+(r.water[sys][1]?"*":"");
+  if(r.milk){if(!o.milk||o.milk==="Geen melk")t+=" · zonder melk";
+    else{const[m,ms]=r.milk[sys];t+=" · melk: "+(r.milk.approx?"± ":"")+m+" ml "+(MILKTXT[o.milk]||o.milk.toLowerCase())+(ms?"*":"")+", "+r.milk.how}}
+  return t}
+function rcp(o){if(!RCP[o.drink])return null;
+  return h("div",{class:"rcp",role:"group","aria-label":"Recept volgens Nespresso"},h("span",{class:"lbl"},"Recept"),
+    h("b",{},"Original"),h("span",{},rcpLine("o",o)),h("b",{},"Vertuo"),h("span",{},rcpLine("v",o)))}
 const sug=o=>{const d=DM[o.drink];return Math.max(1,Math.min(5,(d?d.mins:3)+(o.dbl?1:0)+(o.syrup&&o.syrup!=="Geen"?1:0)))};
 const ago=ms=>{const m=Math.floor(ms/60000);return m<1?"net binnen":m+" min geleden"};
 const clock=ms=>{const a=Math.abs(Math.ceil(ms/1000)),m=Math.floor(a/60),s=a%60;return (ms<0?"+":"")+pad(m)+":"+pad(s)};
@@ -294,13 +319,12 @@ let tt;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on
 
 /* ---------- hero en filmstrook ---------- */
 function paintHero(anim){
-  const d=DM[S.f.drink],i=DRINKS.indexOf(d),im=$("#himg"),t=new Date();
+  const d=DM[S.f.drink],i=DRINKS.indexOf(d),im=$("#himg");
   if(!im.src.endsWith("/photos/"+d.slug+".jpg")){im.style.opacity=1;im.src=photoSrc(d.n)}
   im.alt=d.n+": filmfoto van een kopje op een gekleurde achtergrond";
   if(anim){im.classList.remove("dev");void im.offsetWidth;im.classList.add("dev")}
   $("#hname").textContent=title({drink:d.n,dbl:S.f.dbl});$("#hdesc").textContent=d.d;
   $("#fnum").textContent=pad(i+1)+"A";
-  $("#stamp").textContent="’"+String(t.getFullYear()).slice(2)+" "+pad(t.getMonth()+1)+" "+pad(t.getDate());
 }
 function buildStrip(){const r=$("#reel");
   DRINKS.forEach((d,i)=>r.append(h("button",{class:"frame",role:"radio","aria-checked":"false","data-n":d.n,onclick:()=>choose(d.n)},
@@ -376,6 +400,7 @@ function job(o){
   const b=h("div",{},h("div",{class:"who"},o.name),h("div",{class:"spec"},title(o)+" · "+spec(o)));
   if(o.status==="nieuw"||o.status==="voorstel")b.append(h("div",{class:"meta","data-t":"since","data-at":o.createdAt},ago(now()-o.createdAt)));
   if(o.note)b.append(h("div",{class:"qnote"},"Opmerking: "+o.note));
+  if(o.status==="nieuw"||o.status==="bezig"||o.status==="voorstel")b.append(rcp(o));
   if(o.status==="nieuw"){
     if(o.accepted)b.append(h("span",{class:"tag"},"Voorstel aangenomen"));
     const m=S.pick[o.id]||sug(o);
@@ -419,7 +444,7 @@ function renderBarista(){
     wait.length?[h("h2",{},"Wachtend"),h("div",{class:"cols"},wait.map(job))]:null,
     !busy.length&&!wait.length?h("div",{class:"qempty"},(()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 120 100");s.innerHTML='<use href="#moose"/>';return s})(),h("p",{},"Geen bestellingen. Tijd voor een eigen espresso?")):null,
     done.length?[h("h2",{},"Net klaar"),h("div",{class:"cols"},done.map(doneRow))]:null,
-    stockPanel())}
+    stockPanel(),h("p",{class:"rcpfoot"},"Recepten volgens Nespresso. Een * betekent dat Nespresso hier geen eigen maat geeft: de hoeveelheid is afgeleid van een verwant recept."))}
 
 /* ---------- geluid ---------- */
 let ac;const AC=window.AudioContext||window.webkitAudioContext;
