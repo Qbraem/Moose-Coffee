@@ -1,0 +1,14 @@
+{
+  "name": "Moose koffie",
+  "short_name": "Moose",
+  "description": "Bestel je koffie bij de thuisbarista.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#17402E",
+  "theme_color": "#17402E",
+  "lang": "nl",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
