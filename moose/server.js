@@ -212,15 +212,53 @@ function gewone(u) {
 const pub = o => { const { uid, rateCredited, credited, ...r } = o; return r; };
 // ---------- badges ----------
 const streakOf = u => { const d = [...new Set(u.days || [])].sort((a, b) => a - b); let best = 0, run = 0, prev = null; for (const x of d) { run = prev !== null && x - prev === 1 ? run + 1 : 1; best = Math.max(best, run); prev = x; } return best; };
-const MILES = [[1, "m1", "Eerste slok"], [10, "m10", "Jonge eland"], [20, "m20", "Vaste gast"], [50, "m50", "Eland van het huis"], [100, "m100", "Legende van het bos"]];
 const BADGES = [
-  ...MILES.map(([n, id, name]) => ({ id, name, kind: "mile", glyph: String(n), desc: n === 1 ? "Je eerste koffie bij Moose." : n + " koffies gedronken.", of: n, val: u => u.done || 0 })),
-  { id: "all", name: "Alles geproefd", kind: "fun", glyph: "grid", desc: "Elk drankje op de kaart geprobeerd.", of: DRINK_NAMES.length, val: u => (u.tried || []).length },
-  { id: "season", name: "Seizoensgast", kind: "fun", glyph: "leaf", desc: "Een seizoenssiroop geprobeerd.", of: 1, val: u => u.season ? 1 : 0 },
-  { id: "streak5", name: "Vijf op rij", kind: "fun", glyph: "flame", desc: "Vijf dagen op rij koffie gehaald.", of: 5, val: u => streakOf(u) },
-  { id: "jury", name: "Smaakjury", kind: "fun", glyph: "star", desc: "Zes koffies beoordeeld.", of: 6, val: u => u.rated || 0 },
-  { id: "early", name: "Vroege vogel", kind: "fun", glyph: "sun", desc: "Koffie besteld voor 9 uur.", of: 1, val: u => u.early || 0 },
+  { id: "m1", name: "Eerste slok", kind: "mile", shape: "oval", pal: "orange", glyph: "cup", t: ["EERSTE", "SLOK"], l2: "1 KOFFIE", desc: "Je eerste koffie bij Moose.", of: 1, val: u => u.done || 0 },
+  { id: "m10", name: "Jonge eland", kind: "mile", shape: "shield", pal: "teal", glyph: "moose", t: ["JONGE", "ELAND"], l2: "10 KOFFIES", desc: "10 koffies gedronken.", of: 10, val: u => u.done || 0 },
+  { id: "m20", name: "Vaste gast", kind: "mile", shape: "pent", pal: "rust", glyph: "moose", t: ["VASTE", "GAST"], l2: "20 KOFFIES", desc: "20 koffies gedronken.", of: 20, val: u => u.done || 0 },
+  { id: "m50", name: "Eland van het huis", kind: "mile", shape: "tab", pal: "olive", glyph: "moose", t: ["ELAND VAN", "HET HUIS"], l2: "50 KOFFIES", desc: "50 koffies gedronken.", of: 50, val: u => u.done || 0 },
+  { id: "m100", name: "Legende van het bos", kind: "mile", shape: "shield", pal: "plum", glyph: "moose", t: ["LEGENDE VAN", "HET BOS"], l2: "100 KOFFIES", desc: "100 koffies gedronken.", of: 100, val: u => u.done || 0 },
+  { id: "all", name: "Alles geproefd", kind: "fun", shape: "pent", pal: "navy", glyph: "bean", t: ["ALLES", "GEPROEFD"], l2: DRINK_NAMES.length + " DRANKJES", desc: "Elk drankje op de kaart geprobeerd.", of: DRINK_NAMES.length, val: u => (u.tried || []).length },
+  { id: "season", name: "Seizoensgast", kind: "fun", shape: "tab", pal: "mustard", glyph: "leaf", t: ["SEIZOENS", "GAST"], l2: "LIMITED", desc: "Een seizoenssiroop geprobeerd.", of: 1, val: u => u.season ? 1 : 0 },
+  { id: "streak5", name: "Vijf op rij", kind: "fun", shape: "oval", pal: "rust", glyph: "flame", t: ["VIJF", "OP RIJ"], l2: "5 DAGEN", desc: "Vijf dagen op rij koffie gehaald.", of: 5, val: u => streakOf(u) },
+  { id: "jury", name: "Smaakjury", kind: "fun", shape: "shield", pal: "mustard", glyph: "star", t: ["SMAAK", "JURY"], l2: "6 BEOORDEELD", desc: "Zes koffies beoordeeld.", of: 6, val: u => u.rated || 0 },
+  { id: "early", name: "Vroege vogel", kind: "fun", shape: "pent", pal: "teal", glyph: "sun", t: ["VROEGE", "VOGEL"], l2: "VOOR 9 UUR", desc: "Koffie besteld voor 9 uur.", of: 1, val: u => u.early || 0 },
 ];
+// Speciale badges: een tijdvenster (range) of vaste dagen per jaar (days). Telt op het moment van bestellen, Brusselse tijd.
+const pad2 = n => String(n).padStart(2, "0"), ymd = (y, m, d) => y + "-" + pad2(m) + "-" + pad2(d);
+const nthDow = (y, m, dow, n) => { const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(); return 1 + ((dow - first + 7) % 7) + (n - 1) * 7; };
+function easterDate(y) { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return new Date(Date.UTC(y, mo - 1, da)); }
+const addDays = (dt, n) => { const x = new Date(dt.getTime() + n * 864e5); return ymd(x.getUTCFullYear(), x.getUTCMonth() + 1, x.getUTCDate()); };
+const EVENTS = [
+  { id: "cottage", name: "Cottage 2026 Exclusive", excl: true, shape: "shield", pal: "forest", glyph: "cabin", t: ["COTTAGE", "EXCLUSIVE"], l2: "2026", desc: "Exclusief voor het verblijf in Center Parcs.", range: [Date.parse("2026-11-13T16:00:00+01:00"), Date.parse("2026-11-15T20:00:00+01:00")] },
+  { id: "halloween", name: "Halloween", shape: "oval", pal: "orange", glyph: "pumpkin", t: ["HAPPY", "HALLOWEEN"], l2: "31 OKTOBER", desc: "Koffie besteld op Halloween.", days: y => [ymd(y, 10, 31)] },
+  { id: "sint", name: "Sinterklaas", shape: "tab", pal: "rust", glyph: "mitre", t: ["SINTER", "KLAAS"], l2: "6 DECEMBER", desc: "Koffie besteld op Sinterklaasdag.", days: y => [ymd(y, 12, 6)] },
+  { id: "thanks", name: "Thanksgiving", shape: "pent", pal: "mustard", glyph: "pumpkin", t: ["THANKS", "GIVING"], l2: "NOVEMBER", desc: "Koffie besteld op Thanksgiving.", days: y => [ymd(y, 11, nthDow(y, 11, 4, 4))] },
+  { id: "blackfri", name: "Black Friday", shape: "shield", pal: "ink", glyph: "tag", t: ["BLACK", "FRIDAY"], l2: "NOVEMBER", desc: "Koffie besteld op Black Friday.", days: y => [ymd(y, 11, nthDow(y, 11, 4, 4) + 1)] },
+  { id: "xmas", name: "Kerstmis", shape: "shield", pal: "forest", glyph: "tree", t: ["MERRY", "KERSTMIS"], l2: "24 25 DEC", desc: "Koffie besteld met Kerstmis.", days: y => [ymd(y, 12, 24), ymd(y, 12, 25)] },
+  { id: "nye", name: "Oud en nieuw", shape: "oval", pal: "navy", glyph: "firework", t: ["OUD &", "NIEUW"], l2: "31 DEC", desc: "Koffie besteld op oudejaarsdag of nieuwjaarsdag.", days: y => [ymd(y, 12, 31), ymd(y, 1, 1)] },
+  { id: "valentine", name: "Valentijn", shape: "tab", pal: "rust", glyph: "heart", t: ["VALENTIJN"], l2: "14 FEBRUARI", desc: "Koffie besteld op Valentijn.", days: y => [ymd(y, 2, 14)] },
+  { id: "easter", name: "Pasen", shape: "oval", pal: "mustard", glyph: "egg", t: ["HAPPY", "PASEN"], l2: "LENTE", desc: "Koffie besteld met Pasen.", days: y => { const e = easterDate(y); return [addDays(e, 0), addDays(e, 1)]; } },
+  { id: "spring", name: "Eerste lentedag", shape: "pent", pal: "olive", glyph: "flower", t: ["EERSTE", "LENTEDAG"], l2: "20 MAART", desc: "Koffie besteld op de eerste lentedag.", days: y => [ymd(y, 3, 20)] },
+  { id: "summer", name: "Eerste zomerdag", shape: "oval", pal: "orange", glyph: "sun", t: ["EERSTE", "ZOMERDAG"], l2: "21 JUNI", desc: "Koffie besteld op de eerste zomerdag.", days: y => [ymd(y, 6, 21)] },
+  { id: "autumn", name: "Eerste herfstdag", shape: "tab", pal: "rust", glyph: "leaf", t: ["EERSTE", "HERFSTDAG"], l2: "22 SEPTEMBER", desc: "Koffie besteld op de eerste herfstdag.", days: y => [ymd(y, 9, 22)] },
+  { id: "winter", name: "Eerste winterdag", shape: "shield", pal: "navy", glyph: "snow", t: ["EERSTE", "WINTERDAG"], l2: "21 DECEMBER", desc: "Koffie besteld op de eerste winterdag.", days: y => [ymd(y, 12, 21)] },
+];
+const evMatch = (ev, ts) => ev.range ? ts >= ev.range[0] && ts < ev.range[1] : ev.days(+when(ts).day.slice(0, 4)).includes(when(ts).day);
+const fmtWhen = ts => new Date(ts).toLocaleString("nl-BE", { timeZone: "Europe/Brussels", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const fmtDayNl = d => new Date(d + "T12:00:00Z").toLocaleDateString("nl-BE", { timeZone: "UTC", day: "numeric", month: "long" });
+function evState(ev, now) {
+  if (ev.range) {
+    if (now < ev.range[0]) return { status: "soon", info: "Te verdienen van " + fmtWhen(ev.range[0]) + " tot " + fmtWhen(ev.range[1]) + "." };
+    if (now < ev.range[1]) return { status: "live", info: "Nu te verdienen! Bestel vóór " + fmtWhen(ev.range[1]) + ".", until: ev.range[1] };
+    return { status: "over", info: "Verlopen." };
+  }
+  const today = when(now).day, y = +today.slice(0, 4);
+  if (ev.days(y).includes(today)) return { status: "live", info: "Vandaag te verdienen!", until: null };
+  const nxt = [...ev.days(y), ...ev.days(y + 1)].sort().find(d => d >= today);
+  return { status: "soon", info: "Te verdienen op " + fmtDayNl(nxt) + "." };
+}
+function liveEvents() { const now = Date.now(); return EVENTS.map(ev => ({ ev, st: evState(ev, now) })).filter(x => x.st.status === "live").map(x => ({ id: x.ev.id, name: x.ev.name, excl: !!x.ev.excl, info: x.st.info, until: x.st.until || null })); }
 function checkBadges(u) { u.bd = u.bd || {}; for (const b of BADGES) if (!u.bd[b.id] && b.val(u) >= b.of) u.bd[b.id] = Date.now(); }
 function creditDone(o) {
   const u = o.uid && users.find(x => x.id === o.uid); if (!u) return;
@@ -229,9 +267,15 @@ function creditDone(o) {
   const sy = syrups.find(x => x.name === o.syrup); if (sy && sy.season) u.season = true;
   if (w.hour < 9) u.early = (u.early || 0) + 1;
   u.days = (u.days || []).concat(dayNum(w.day)).slice(-60);
+  u.bd = u.bd || {}; for (const ev of EVENTS) if (!u.bd[ev.id] && evMatch(ev, o.createdAt)) u.bd[ev.id] = Date.now();
   checkBadges(u); saveCfg();
 }
-const badgesOf = u => BADGES.map(b => ({ id: b.id, name: b.name, kind: b.kind, glyph: b.glyph, desc: b.desc, of: b.of, n: Math.min(b.of, b.val(u)), at: (u.bd || {})[b.id] || null }));
+const badgeBase = b => ({ id: b.id, name: b.name, kind: b.kind, shape: b.shape, pal: b.pal, glyph: b.glyph, t: b.t, l2: b.l2, desc: b.desc, excl: !!b.excl });
+function badgesOf(u) {
+  const now = Date.now(), out = BADGES.map(b => Object.assign(badgeBase(b), { of: b.of, n: Math.min(b.of, b.val(u)), at: (u.bd || {})[b.id] || null }));
+  for (const ev of EVENTS) { const at = (u.bd || {})[ev.id] || null, st = evState(ev, now); if (!at && st.status === "over") continue; out.push(Object.assign(badgeBase(Object.assign({}, ev, { kind: "event" })), { of: 1, n: at ? 1 : 0, at, status: at ? "earned" : st.status, info: at ? "" : st.info })); }
+  return out;
+}
 const me = u => ({ name: u.name, hist: (u.hist || []).slice(0, 12), gewone: gewone(u), total: u.total || 0, done: u.done || 0, badges: badgesOf(u) });
 
 // ---------- statistieken ----------
@@ -303,7 +347,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === "/healthz") return send(res, 200, { ok: true });
     if (url.pathname === "/api/orders" && req.method === "GET")
-      return send(res, 200, { orders: orders.map(pub), now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps, tips, syrups });
+      return send(res, 200, { orders: orders.map(pub), now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps, tips, syrups, events: liveEvents() });
     if (url.pathname === "/api/pin" && req.method === "POST") {
       const b = await readBody(req);
       if (blocked(req)) return deny(res, req);
