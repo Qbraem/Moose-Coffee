@@ -456,6 +456,7 @@ body[data-view=klant] .site2,body[data-view=account] .site2{display:none}
 "use strict";
 const DRINKS=[
  {n:"Espresso",slug:"espresso",d:"Kort, krachtig en met een laagje crema.",mins:1,milk:false},
+ {n:"Lungo",slug:"lungo",d:"Een langere espresso: meer water, milder en lang genieten.",mins:2,milk:false},
  {n:"Americano",slug:"americano",d:"Espresso, verlengd met heet water.",mins:2,milk:false},
  {n:"Cappuccino",slug:"cappuccino",d:"Espresso, warme melk en een dikke schuimkraag.",mins:4,milk:true},
  {n:"Latte",slug:"latte",d:"Veel zachte melk met een dun laagje schuim.",mins:4,milk:true},
@@ -505,6 +506,7 @@ function spec(o){const p=[];
 // [capsule-maat, ml, afgeleid]. * = Nespresso geeft hier geen eigen maat, afgeleid van een verwant recept.
 const RCP={
  "Espresso":{o:["Espresso",40,0],v:["Espresso",40,0]},
+ "Lungo":{o:["Lungo",110,0],v:["Gran Lungo",150,0]},
  "Americano":{o:["Ristretto",25,0],v:["Espresso",40,1],water:{o:[125,0],v:[110,1]}},
  "Cappuccino":{o:["Espresso",40,0],v:["Espresso",40,0],milk:{o:[100,0],v:[90,0],how:"opschuimen"}},
  "Latte":{o:["Lungo",110,0],v:["Espresso",40,1],milk:{o:[110,1],v:[110,0],how:"opschuimen"}},

@@ -23,7 +23,7 @@ const redis = cmd => fetch(REDIS_URL, { method: "POST", headers: { Authorization
 // De gast kiest de soort bij het bestellen, en dat aantal gaat dan omlaag.
 const SYSTEMS = ["Original", "Vertuo"];
 // Siroopsuggesties: per drankje een siroop die goed past. De barista past dit aan, en zet het per capsule uit (bijvoorbeeld bij een sterke ristretto).
-const DRINK_NAMES = ["Espresso", "Americano", "Cappuccino", "Latte", "Latte macchiato", "Flat white", "Macchiato", "Cortado"];
+const DRINK_NAMES = ["Espresso", "Lungo", "Americano", "Cappuccino", "Latte", "Latte macchiato", "Flat white", "Macchiato", "Cortado"];
 const COLORS = ["#E08A2E", "#E6D2B0", "#B98A52", "#8A4B2A", "#C0504D", "#7A9A5B", "#D9A441", "#8E6BA8"];
 const DEFAULT_SYRUPS = [{ id: "pumpkin", name: "Pumpkin spice", color: "#E08A2E", season: true }, { id: "mocha", name: "White mocha", color: "#E6D2B0", season: false }, { id: "hazel", name: "Hazelnoot", color: "#B98A52", season: false }];
 function normSyrups(l) {

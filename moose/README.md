@@ -125,6 +125,8 @@ Je past de maten aan in `public/index.html`, bij `RCP`.
   Zet de app niet zomaar open op internet.
 - Altijd aan? Draai hem op een Raspberry Pi, een NAS of een oude laptop.
 
+Lungo staat op de kaart (foto via `tools/badges/make_lungo.py`).
+
 ## Badge-artwork (PNG)
 
 De badges zijn echte PNG-afbeeldingen in `public/badges/<id>.png` (analoge korrel, Moose-kleuren, Bricolage Grotesque).

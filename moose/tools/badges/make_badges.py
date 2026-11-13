@@ -192,7 +192,7 @@ BADGES = [
       art=lambda: stars([(110, 214, .9), (160, 250, .6), (430, 220, 1.1), (350, 190, .7), (88, 316, .6), (450, 324, .7)], CREAM, .95) + f'<circle cx="260" cy="316" r="98" fill="url(#halo)"/><circle cx="260" cy="316" r="82" fill="#F1E3B2"/>' + mountains(398, "#4A3366", "#2B1944", 0, 1.1) + pines([84, 118, 440, 470], 410, [96, 70, 100, 120], "#150A24") + moose(260, 338, 1.9, BUTTER, "#27163D") + laurel(260, 404, 160, BUTTER) + bean(140, 492, .8, 20) + bean(390, 494, .8, -24)),
  dict(id="pumpkin", t=["PUMPKIN", "SPICE"], l2="SEIZOENSFAVORIET", kick="MOOSE COFFEE", shape="pent", sky=("#E0801F", "#F7C57A"), gnd=("#7A3412", "#4C1F0B"), rim=CREAM,
       art=lambda: sun(380, 270, 34, "#FFE9B0") + pumpkin(190, 470, .92) + cup(352, 468, .56, tone="#8A4A22") + leafmaple(120, 500, .22, "#C0521C", "#7A3412", -20) + bean(446, 486, .7, 10)),
- dict(id="all", t=["ALLES", "GEPROEFD"], l2="8 DRANKJES", kick="MOOSE COFFEE", shape="pent", sky=("#2D5E93", "#8DB6D6"), gnd=("#183456", "#0F2038"), rim=CREAM,
+ dict(id="all", t=["ALLES", "GEPROEFD"], l2="9 DRANKJES", kick="MOOSE COFFEE", shape="pent", sky=("#2D5E93", "#8DB6D6"), gnd=("#183456", "#0F2038"), rim=CREAM,
       art=lambda: sun(260, 312, 44, "#F6E7B8") + cup(260, 468, .74) + "".join(bean(260 + 148 * math.cos(math.radians(a)), 380 + 78 * math.sin(math.radians(a)) * 1.2, .9, a) for a in range(200, 345, 24))),
  dict(id="season", t=["SEIZOENS", "GAST"], l2="LIMITED", kick="MOOSE COFFEE", shape="tab", sky=("#D9A441", "#F3D58E"), gnd=("#6A4A1E", "#3E2A12"), rim=CREAM,
       art=lambda: sun(392, 270, 34, "#FFF0BC") + leafmaple(170, 470, .9, "#C0521C", "#7A3412", -12) + leafmaple(340, 480, .7, "#E3A02B", "#8E5B14", 20) + leafmaple(260, 330, .5, "#A3401A", "#5A2A10", 6) + bean(420, 500, .8, 20)),
