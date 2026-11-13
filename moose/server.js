@@ -220,6 +220,7 @@ const BADGES = [
   { id: "m100", name: "Legende van het bos", kind: "mile", shape: "shield", pal: "plum", glyph: "moose", t: ["LEGENDE VAN", "HET BOS"], l2: "100 KOFFIES", desc: "100 koffies gedronken.", of: 100, val: u => u.done || 0 },
   { id: "all", name: "Alles geproefd", kind: "fun", shape: "pent", pal: "navy", glyph: "bean", t: ["ALLES", "GEPROEFD"], l2: DRINK_NAMES.length + " DRANKJES", desc: "Elk drankje op de kaart geprobeerd.", of: DRINK_NAMES.length, val: u => (u.tried || []).length },
   { id: "season", name: "Seizoensgast", kind: "fun", shape: "tab", pal: "mustard", glyph: "leaf", t: ["SEIZOENS", "GAST"], l2: "LIMITED", desc: "Een seizoenssiroop geprobeerd.", of: 1, val: u => u.season ? 1 : 0 },
+  { id: "pumpkin", name: "Pumpkin Spice", kind: "fun", shape: "pent", t: ["PUMPKIN", "SPICE"], l2: "SEIZOENSFAVORIET", desc: "Een koffie met Pumpkin spice gedronken.", of: 1, val: u => u.pumpkin ? 1 : 0 },
   { id: "streak5", name: "Vijf op rij", kind: "fun", shape: "oval", pal: "rust", glyph: "flame", t: ["VIJF", "OP RIJ"], l2: "5 DAGEN", desc: "Vijf dagen op rij koffie gehaald.", of: 5, val: u => streakOf(u) },
   { id: "jury", name: "Smaakjury", kind: "fun", shape: "shield", pal: "mustard", glyph: "star", t: ["SMAAK", "JURY"], l2: "6 BEOORDEELD", desc: "Zes koffies beoordeeld.", of: 6, val: u => u.rated || 0 },
   { id: "early", name: "Vroege vogel", kind: "fun", shape: "pent", pal: "teal", glyph: "sun", t: ["VROEGE", "VOGEL"], l2: "VOOR 9 UUR", desc: "Koffie besteld voor 9 uur.", of: 1, val: u => u.early || 0 },
@@ -265,6 +266,7 @@ function creditDone(o) {
   const w = when(o.createdAt);
   u.done = (u.done || 0) + 1; u.tried = u.tried || []; if (!u.tried.includes(o.drink)) u.tried.push(o.drink);
   const sy = syrups.find(x => x.name === o.syrup); if (sy && sy.season) u.season = true;
+  if (/pumpkin/i.test(o.syrup || "")) u.pumpkin = true;
   if (w.hour < 9) u.early = (u.early || 0) + 1;
   u.days = (u.days || []).concat(dayNum(w.day)).slice(-60);
   u.bd = u.bd || {}; for (const ev of EVENTS) if (!u.bd[ev.id] && evMatch(ev, o.createdAt)) u.bd[ev.id] = Date.now();

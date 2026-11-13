@@ -124,3 +124,10 @@ Je past de maten aan in `public/index.html`, bij `RCP`.
 - Zonder `BARISTA_PIN` is er geen beveiliging: iedereen op je wifi kan dan ook als barista aannemen.
   Zet de app niet zomaar open op internet.
 - Altijd aan? Draai hem op een Raspberry Pi, een NAS of een oude laptop.
+
+## Badge-artwork (PNG)
+
+De badges zijn echte PNG-afbeeldingen in `public/badges/<id>.png` (analoge korrel, Moose-kleuren, Bricolage Grotesque).
+Account-tab: standaard alleen de mijlpalen; fun- en eventbadges verschijnen zodra je ze verdient (of live zijn).
+Nieuw: **Pumpkin Spice** (koffie met siroop "Pumpkin spice" klaar gemaakt).
+Opnieuw genereren: `python3 tools/badges/make_badges.py [id ...]` (Playwright + Bricolage Grotesque, pad via `MOOSE_FONT`).
