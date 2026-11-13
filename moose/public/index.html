@@ -107,6 +107,20 @@ body.closed{padding-bottom:0}
 .shopsw b{display:block;font-size:16px}.shopsw small{opacity:.75;font-size:13px}
 .shopsw button{border:0;border-radius:999px;padding:10px 18px;font:800 15px var(--display);background:#4C8A5F;color:#fff}
 .shopsw button[aria-pressed=true]{background:var(--tomato)}
+.rate{background:var(--butter);color:var(--pine);border-radius:16px;padding:12px 14px;margin:10px 0 2px}
+.rate b{display:block;font-size:15px;margin-bottom:6px}
+.stars{display:flex;gap:2px}
+.stars button{background:none;border:0;padding:2px;width:44px;height:44px;line-height:0;color:rgba(23,64,46,.28)}
+.stars button svg{width:100%;height:100%;transition:transform .12s}
+.stars button[aria-checked=true],.stars button.on{color:var(--pine)}
+.stars button:active svg{transform:scale(1.2)}
+.rate small{display:block;font-weight:600;opacity:.8;margin-top:2px}
+.rdist{display:grid;gap:6px;margin-top:8px}
+.rdist div{display:grid;grid-template-columns:24px 1fr 28px;gap:8px;align-items:center;font-size:14px;font-weight:700}
+.rdist i{display:block;height:12px;border-radius:6px;background:var(--butter);min-width:4px}
+.rdist em{font-style:normal;text-align:right;opacity:.8}
+.rbig{font:800 40px/1 var(--display);letter-spacing:-.02em}
+.starsro{color:var(--butter);letter-spacing:2px;font-size:15px}
 .tkov{position:fixed;inset:0;z-index:40;background:rgba(9,28,20,.94);display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top,0px)) 18px max(18px,env(safe-area-inset-bottom,0px));overflow:auto;animation:fadein .2s}
 .tkwrap{margin:auto 0;width:min(340px,100%);display:flex;flex-direction:column;gap:14px;align-items:stretch}
 .ticket{filter:drop-shadow(0 18px 28px rgba(0,0,0,.4));animation:tin .55s cubic-bezier(.2,.9,.25,1.15);color:var(--pine)}
@@ -667,7 +681,7 @@ function orderCard(o){
   if(o.status==="voorstel")b.append(h("div",{class:"note"},"Barista: "+(o.reply||"")),h("div",{class:"acts"},
     h("button",{class:"btn",onclick:()=>upd(o.id,{status:"nieuw",accepted:true})},"Voorstel aannemen"),h("button",{class:"btn ghost",onclick:()=>upd(o.id,{status:"weg"})},"Laat maar")));
   if(o.status==="nieuw")b.append(h("div",{class:"acts"},h("button",{class:"btn ghost",onclick:()=>upd(o.id,{status:"weg"})},"Annuleren")));
-  if(o.status==="klaar")b.append(h("div",{class:"ready"},"Klaar! Kom ’m maar halen."),h("div",{class:"acts"},
+  if(o.status==="klaar")b.append(h("div",{class:"ready"},"Klaar! Kom ’m maar halen."),rateBox(o),h("div",{class:"acts"},
     h("button",{class:"btn",onclick:()=>upd(o.id,{status:"weg"})},"Opgehaald"),h("button",{class:"btn ghost",onclick:()=>{redo(o);upd(o.id,{status:"weg"})}},"Nog eentje")));
   if(o.status==="geweigerd")b.append(h("div",{class:"note"},"De barista kan deze nu niet maken."),h("div",{class:"acts"},
     h("button",{class:"btn",onclick:()=>upd(o.id,{status:"weg"})},"Sluiten"),h("button",{class:"btn ghost",onclick:()=>{redo(o);upd(o.id,{status:"weg"})}},"Iets anders kiezen")));
@@ -704,7 +718,7 @@ function job(o){
     b.append(h("div",{class:"count","data-t":"clock","data-at":o.etaAt},clock(o.etaAt-now())),h("div",{class:"prog"},h("i",{"data-t":"bar","data-at":o.etaAt,"data-min":o.etaMin||5})),
       h("div",{class:"row"},h("button",{class:"btn",onclick:()=>upd(o.id,{status:"klaar"})},"Klaar ✓"),h("button",{class:"btn d",onclick:()=>upd(o.id,{addMin:1})},"+1 min")))}
   c.append(b);return c}
-function doneRow(o){return h("article",{class:"job small"},h("div",{class:"th"},img(o.drink)),h("div",{},h("div",{class:"who"},o.name+": "+title(o)),h("div",{class:"meta"},o.status==="klaar"?"Klaar":"Niet mogelijk")))}
+function doneRow(o){return h("article",{class:"job small"},h("div",{class:"th"},img(o.drink)),h("div",{},h("div",{class:"who"},o.name+": "+title(o)),h("div",{class:"meta"},o.status==="klaar"?"Klaar":"Niet mogelijk"),o.rating?h("div",{class:"starsro","aria-label":o.rating+" van 5 sterren"},"★".repeat(o.rating)+"☆".repeat(5-o.rating)):null))}
 function renderPin(){const el=$("#barista");if(el.querySelector("#pin"))return;
   const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("viewBox","0 0 120 100");svg.setAttribute("aria-hidden","true");svg.innerHTML='<use href="#moose"/>';
   fill(el,h("form",{class:"pinbox",onsubmit:e=>{e.preventDefault();tryPin()}},svg,h("h1",{},"Barista"),h("p",{},"Vul de code in om bestellingen te beheren."),
@@ -806,6 +820,8 @@ function facts(st){
   if(st.wait.n>=2&&st.wait.sum>0)f.push({k:"Snelheid",v:"gemiddeld "+dur(st.wait.sum/st.wait.n),s:"Van bestelling tot klaar."+(st.wait.min?" De snelste kwam er in "+dur(st.wait.min)+" doorheen.":"")});
   if(st.people[0]&&t>=3)f.push({k:"Grootste koffieliefhebber",v:st.people[0].name,s:st.people[0].n+" koffies"+(st.people[0].fav?", meestal "+st.people[0].fav.toLowerCase():"")+"."});
   const cn=topOf(st.capNames);if(cn[0])f.push({k:"Favoriete capsule",v:cn[0][0],s:cn[0][1]+"× gekozen."+(st.deca?" "+st.deca+" koffies waren deca.":"")});
+  const rt=st.rate;if(rt&&rt.n>=1){f.push({k:"Gemiddeld cijfer",v:rt.avg.toFixed(1).replace(".",",")+" van 5",s:"Op basis van "+rt.n+(rt.n===1?" beoordeling":" beoordelingen")+"."});
+    const best=rt.drinks.filter(x=>x.n>=2)[0]||(rt.n>=1?rt.drinks[0]:null);if(best)f.push({k:"Best beoordeeld",v:best.drink,s:best.avg.toFixed(1).replace(".",",")+" van 5 ("+best.n+"×)."})}
   if(st.today>=1)f.push({k:"Vandaag",v:st.today+(st.today===1?" koffie":" koffies"),s:"Vandaag al gemaakt."});
   return f}
 let statsErr="";
@@ -829,9 +845,13 @@ function renderStats(){
     h("div",{class:"share"},h("button",{class:"btn",onclick:()=>shareStats(st)},"Deel de cijfers"),h("span",{class:"lead",style:"margin:0"},"Gebruik "+HASH)),
     h("div",{class:"tiles"},
       h("div",{class:"tile"},h("b",{},String(st.today)),h("span",{},"vandaag")),
-      h("div",{class:"tile"},h("b",{},String(st.dbl)),h("span",{},"dubbele")),
+      st.rate&&st.rate.n?h("div",{class:"tile"},h("b",{},st.rate.avg.toFixed(1).replace(".",",")+"★"),h("span",{},"gemiddeld cijfer")):h("div",{class:"tile"},h("b",{},String(st.dbl)),h("span",{},"dubbele")),
       h("div",{class:"tile"},h("b",{},String(st.activeDays)),h("span",{},"dagen met koffie")),
       h("div",{class:"tile"},h("b",{},st.wait.n?Math.max(1,Math.round(st.wait.sum/st.wait.n/60))+" min":"–"),h("span",{},"gemiddelde wachttijd"))),
+    st.rate&&st.rate.n?h("div",{class:"two2"},
+      h("div",{class:"card2"},h("h2",{},"Hoe lekker?"),h("div",{class:"rbig"},st.rate.avg.toFixed(1).replace(".",",")+" ★"),h("p",{class:"lead",style:"margin:4px 0 0"},st.rate.n+(st.rate.n===1?" beoordeling":" beoordelingen")),
+        h("div",{class:"rdist"},[5,4,3,2,1].map(n=>h("div",{},h("span",{},n+"★"),h("i",{style:"width:"+Math.max(4,Math.round(st.rate.dist[n-1]/Math.max(1,...st.rate.dist)*100))+"%"}),h("em",{},String(st.rate.dist[n-1])))))),
+      h("div",{class:"card2"},h("h2",{},"Beste drankjes"),h("div",{class:"rank"},st.rate.drinks.slice(0,5).map((d,i)=>h("div",{},h("span",{class:"n"},String(i+1)),h("span",{},d.drink,h("small",{}," · "+d.n+"×")),h("em",{},d.avg.toFixed(1).replace(".",","))))))):null,
     h("div",{class:"two2"},
       h("div",{class:"card2"},h("h2",{},"Populairste drankjes"),hbars(st.drinks,dm)),
       h("div",{class:"card2"},h("h2",{},"Koffieliefhebbers"),st.people.length?h("div",{class:"rank"},st.people.map((p,i)=>h("div",{},h("span",{class:"n"},String(i+1)),h("span",{},p.name,p.fav?h("small",{}," · "+p.fav):null),h("em",{},String(p.n))))):h("p",{},"Nog niemand."))),
@@ -858,6 +878,7 @@ function histRow(o){const open=S.hist.sel===o.id;
       h("div",{},h("span",{class:"k"},"Suiker"),h("span",{},o.sugar)),
       o.capName?h("div",{},h("span",{class:"k"},"Capsule"),h("span",{},[o.capName,o.capDeca?"Deca":"",o.capSys,o.capStr?"sterkte "+o.capStr:"",o.capN>1?o.capN+" capsules":""].filter(Boolean).join(" · "))):null,
       o.note?h("div",{},h("span",{class:"k"},"Opmerking"),h("span",{},o.note)):null,
+      o.rating?h("div",{},h("span",{class:"k"},"Beoordeling"),h("span",{},"★".repeat(o.rating)+"☆".repeat(5-o.rating)+" ("+o.rating+"/5)")):null,
       o.reply?h("div",{},h("span",{class:"k"},"Jouw antwoord"),h("span",{},o.reply)):null,
       h("div",{},h("span",{class:"k"},"Besteld"),h("span",{},stT(o.createdAt))),
       o.readyAt?h("div",{},h("span",{class:"k"},"Klaar"),h("span",{},stT(o.readyAt)+" ("+Math.max(1,Math.round((o.readyAt-o.createdAt)/60000))+" min na de bestelling)")):null,
@@ -890,7 +911,7 @@ function onData(prev){
   if(S.seen){const fresh=S.orders.filter(o=>!S.seen.has(o.id)&&o.status==="nieuw");if(fresh.length&&S.view==="barista"&&S.sound)beep()}
   S.seen=ids;
   const was=Object.fromEntries(prev.map(o=>[o.id,o.status])),m=mine();
-  if(prev.length&&m.some(o=>o.status==="klaar"&&was[o.id]&&was[o.id]!=="klaar")){try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}toast("Je koffie is klaar!")}
+  if(prev.length&&m.some(o=>o.status==="klaar"&&was[o.id]&&was[o.id]!=="klaar")){try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}toast("Je koffie is klaar! Geef je sterren.")}
   document.title=S.view==="barista"?"Barista · Moose":S.view==="stats"?"Statistieken · Moose":m.some(o=>o.status==="klaar")?"Klaar! · Moose":"Moose · koffie";
   renderOrders();
   if(S.view==="barista"&&!isTyping())renderBarista();
@@ -923,6 +944,12 @@ setInterval(()=>{if(S.view==="stats")loadStats()},20000);
 
 /* ---------- fun: ticket, mascotte, delen ---------- */
 const HASH="#MooseCoffee";
+const starSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("aria-hidden","true");s.innerHTML='<path fill="currentColor" d="M12 2.8l2.8 5.9 6.4.9-4.7 4.5 1.2 6.4L12 17.4l-5.7 3.1 1.2-6.4L2.8 9.6l6.4-.9z"/>';return s};
+const RATE_TXT=["","Niet lekker","Kan beter","Goed","Lekker","Superlekker"];
+function rateBox(o){const r=o.rating||0;
+  return h("div",{class:"rate"},h("b",{},r?"Bedankt voor je beoordeling!":"Hoe lekker was je koffie?"),
+    h("div",{class:"stars",role:"radiogroup","aria-label":"Beoordeling, 1 tot 5 sterren"},[1,2,3,4,5].map(n=>h("button",{role:"radio","aria-checked":n===r,class:n<=r?"on":"","aria-label":n+(n===1?" ster":" sterren")+": "+RATE_TXT[n],onclick:()=>upd(o.id,{rating:n})},starSvg()))),
+    h("small",{},r?RATE_TXT[r]+". Tik op een andere ster om te wijzigen.":"Tik op de sterren. De barista krijgt je cijfer te zien."))}
 const tno=o=>"#"+String(100+parseInt(o.id.slice(-4),36)%900);
 const mooseSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 120 100");s.setAttribute("aria-hidden","true");s.innerHTML='<use href="#moose"/>';return s};
 const heartSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("aria-hidden","true");s.innerHTML='<path fill="currentColor" d="M12 21.2l-1.4-1.3C5.4 15.2 2 12.1 2 8.3 2 5.2 4.4 3 7.4 3c1.7 0 3.4.8 4.6 2.1C13.2 3.8 14.9 3 16.6 3 19.6 3 22 5.2 22 8.3c0 3.8-3.4 6.9-8.6 11.6L12 21.2z"/>';return s};

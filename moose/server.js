@@ -222,7 +222,14 @@ function ensureStats() {
   stats = { since: orders.length ? orders[orders.length - 1].createdAt : Date.now(), total: 0, caps: 0, dbl: 0, deca: 0, drinks: {}, milk: {}, syrup: {}, sugar: {}, capNames: {}, hours: Array(24).fill(0), wdays: Array(7).fill(0), days: {}, people: {}, wait: { n: 0, sum: 0, min: 0, max: 0 } };
   for (const o of orders.slice().reverse()) if (o.readyAt && o.status !== "geweigerd") { o.counted = true; tally(o, 1); } // bestaande bestellingen meetellen
 }
+function rate(st, o, d) {
+  const r = st.rate || (st.rate = { n: 0, sum: 0, dist: [0, 0, 0, 0, 0], drinks: {} });
+  r.n = Math.max(0, r.n + d); r.sum = Math.max(0, r.sum + d * o.rating); r.dist[o.rating - 1] = Math.max(0, r.dist[o.rating - 1] + d);
+  const x = r.drinks[o.drink] || (r.drinks[o.drink] = { n: 0, sum: 0 }); x.n = Math.max(0, x.n + d); x.sum = Math.max(0, x.sum + d * o.rating);
+  if (x.n === 0) delete r.drinks[o.drink];
+}
 function tally(o, d) {
+  if (o.rating >= 1) rate(stats, o, d);
   const st = stats, w = when(o.createdAt), k = nameKey(o.name);
   st.total += d; st.caps += d * (o.capN || (o.dbl ? 2 : 1)); if (o.dbl) st.dbl += d; if (o.capDeca) st.deca += d;
   bump(st.drinks, o.drink, d); bump(st.milk, o.milk, d); bump(st.syrup, o.syrup, d); bump(st.sugar, o.sugar, d); bump(st.capNames, o.capName, d);
@@ -242,7 +249,8 @@ function statsOut() {
   const cur = days.length && dayNum(today) - dayNum(days[days.length - 1]) <= 1 ? run : 0;
   const last14 = []; for (let i = 13; i >= 0; i--) { const d = new Date((dayNum(today) - i) * 864e5).toISOString().slice(0, 10); last14.push({ day: d, n: st.days[d] || 0 }); }
   const people = Object.values(st.people).sort((a, b) => b.n - a.n).slice(0, 5).map(p => ({ name: p.name, n: p.n, fav: (Object.entries(p.drinks).sort((a, b) => b[1] - a[1])[0] || [""])[0] }));
-  return { since: st.since, total: st.total, caps: st.caps, dbl: st.dbl, deca: st.deca, drinks: st.drinks, milk: st.milk, syrup: st.syrup, sugar: st.sugar, capNames: st.capNames, hours: st.hours, wdays: st.wdays, last14, best, streak: { cur, max }, wait: st.wait, people, activeDays: days.length, today: st.days[today] || 0 };
+  const rt = st.rate || { n: 0, sum: 0, dist: [0, 0, 0, 0, 0], drinks: {} };
+  return { rate: { n: rt.n, avg: rt.n ? rt.sum / rt.n : 0, dist: rt.dist, drinks: Object.entries(rt.drinks).map(([d, x]) => ({ drink: d, n: x.n, avg: x.sum / x.n })).sort((a, b) => b.avg - a.avg || b.n - a.n) }, since: st.since, total: st.total, caps: st.caps, dbl: st.dbl, deca: st.deca, drinks: st.drinks, milk: st.milk, syrup: st.syrup, sugar: st.sugar, capNames: st.capNames, hours: st.hours, wdays: st.wdays, last14, best, streak: { cur, max }, wait: st.wait, people, activeDays: days.length, today: st.days[today] || 0 };
 }
 
 // ---------- voorraad ----------
@@ -447,7 +455,8 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req), keys = Object.keys(b);
       // Een klant mag alleen zijn bestelling sluiten of een voorstel aannemen. De rest vraagt de code.
       const customerAct = (b.status === "weg" && keys.length === 1) ||
-        (o.status === "voorstel" && b.status === "nieuw" && b.accepted === true && keys.every(k => k === "status" || k === "accepted"));
+        (o.status === "voorstel" && b.status === "nieuw" && b.accepted === true && keys.every(k => k === "status" || k === "accepted")) ||
+        (keys.length === 1 && b.rating !== undefined);
       if (!customerAct && !authed(req)) return deny(res, req);
       const prev = o.status;
       if (b.status !== undefined) {
@@ -460,13 +469,20 @@ const server = http.createServer(async (req, res) => {
       }
       if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o), "order-" + o.id);
       if (b.status && b.status !== prev) {
-        if (b.status === "klaar") notifyClient(o, "Je koffie is klaar!", label(o) + ": kom ’m maar halen.");
+        if (b.status === "klaar") notifyClient(o, "Je koffie is klaar!", label(o) + ": kom ’m maar halen. Hoe lekker was ze? Geef je sterren in de app.");
         if (b.status === "voorstel") notifyClient(o, "Voorstel van de barista", s(b.reply, 200));
         if (b.status === "geweigerd") notifyClient(o, "Helaas niet gelukt", "De barista kan je " + label(o) + " nu niet maken.");
       }
       // Mislukt of geannuleerd voor het klaar was: de capsules gaan terug in de voorraad.
       if (o.capId && !o.capBack && b.status && b.status !== prev && (b.status === "geweigerd" || (b.status === "weg" && prev !== "klaar" && prev !== "geweigerd"))) {
         const c = caps.list.find(x => x.id === o.capId); o.capBack = true; if (c) { c.n += o.capN || 1; saveCfg(); }
+      }
+      if (b.rating !== undefined) {
+        const r = Math.round(Number(b.rating));
+        if (!(r >= 1 && r <= 5)) return send(res, 400, { error: "ongeldige beoordeling" });
+        if (!o.readyAt || !o.counted) return send(res, 409, { error: "Je kunt pas beoordelen als de koffie klaar is" });
+        ensureStats(); if (o.rating) rate(stats, o, -1);
+        o.rating = r; rate(stats, o, 1); saveCfg();
       }
       if (b.reply !== undefined) o.reply = s(b.reply, 200);
       if (b.accepted !== undefined) o.accepted = !!b.accepted;
