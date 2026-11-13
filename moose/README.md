@@ -133,3 +133,5 @@ De badges zijn echte PNG-afbeeldingen in `public/badges/<id>.png` (analoge korre
 Account-tab: standaard alleen de mijlpalen; fun- en eventbadges verschijnen zodra je ze verdient (of live zijn).
 Nieuw: **Pumpkin Spice** (koffie met siroop "Pumpkin spice" klaar gemaakt).
 Opnieuw genereren: `python3 tools/badges/make_badges.py [id ...]` (Playwright + Bricolage Grotesque, pad via `MOOSE_FONT`).
+
+Badges delen: tik op een behaalde badge (of de "Nieuwe badge"-popup) en kies "Deel badge". Je krijgt een afbeelding 1080x1350 met Moose-logo, #MooseCoffee en de site-url; op telefoon opent het deelmenu, op desktop wordt de PNG gedownload.

@@ -129,6 +129,8 @@ body.closed{padding-bottom:0}
 .bbar{height:10px;border-radius:6px;background:rgba(23,64,46,.12);overflow:hidden;margin-bottom:10px}
 .bbar i{display:block;height:100%;background:var(--pine);border-radius:6px}
 .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;margin:10px 0}
+button.bd{background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:700;cursor:pointer}
+button.bd:active .patch{transform:scale(.96)}
 .bd{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;font-size:12px;font-weight:700;line-height:1.2}
 .bd small{font-weight:600;opacity:.65;font-size:11px}
 .bd.lock{opacity:.7}
@@ -999,23 +1001,59 @@ const medalSvg=patchImg;
 const rankTitle=()=>{const m=(S.acct&&S.acct.badges||[]).filter(b=>b.kind==="mile"&&b.at);return m.length?m[m.length-1].name:""};
 function badgePanel(a){const B=a.badges||[];if(!B.length)return null;
   const got=B.filter(b=>b.at).length,next=B.find(b=>b.kind==="mile"&&!b.at);
-  const card=b=>h("div",{class:"bd"+(b.at||b.status==="live"?"":" lock")},patchImg(b),h("span",{},b.name),
+  const card=b=>h(b.at?"button":"div",{class:"bd"+(b.at||b.status==="live"?"":" lock"),...(b.at?{type:"button","aria-label":b.name+", deel badge",onclick:()=>openBadge(b,false)}:{})},patchImg(b),h("span",{},b.name),
     b.status==="live"?h("small",{},h("span",{class:"live"},"Nu te verdienen")):null,
     h("small",{},b.at?b.desc:(b.kind==="event"?b.info:(b.of>1?b.n+" van "+b.of:b.desc))));
   const mile=B.filter(b=>b.kind==="mile"),extra=B.filter(b=>b.kind!=="mile"&&(b.at||b.status==="live"));
   return h("div",{class:"bdg"},h("h4",{},"Mijn badges",h("small",{},got+(got===1?" verdiend":" verdiend"))),
     next?[h("p",{class:"bnext"},"Nog "+(next.of-next.n)+(next.of-next.n===1?" koffie":" koffies")+" tot “"+next.name+"”"),h("div",{class:"bbar",role:"progressbar","aria-valuenow":next.n,"aria-valuemax":next.of,"aria-label":"Voortgang naar "+next.name},h("i",{style:"width:"+Math.round(next.n/next.of*100)+"%"}))]:h("p",{class:"bnext"},"Alle mijlpalen gehaald. Wat een eland!"),
-    h("div",{class:"bsec"},"Mijlpalen"),h("div",{class:"bgrid"},mile.map(card)),
+    h("div",{class:"bsec"},"Mijlpalen"),got?h("p",{class:"bnext"},"Tik op een behaalde badge om hem te delen."):null,h("div",{class:"bgrid"},mile.map(card)),
     extra.length?[h("div",{class:"bsec"},"Verzameld"),h("div",{class:"bgrid"},extra.map(card))]:null)}
+function badgeText(b){return "Ik verdiende de badge “"+b.name+"” bij Moose Coffee "+HASH+" "+location.origin}
+function drawBadgeCard(b){return new Promise(res=>{
+  const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+  const FF='"Bricolage Grotesque",system-ui,sans-serif';
+  g.fillStyle="#17402E";g.fillRect(0,0,W,H);
+  g.fillStyle="#1F5A3F";g.beginPath();g.arc(W,0,560,0,7);g.fill();g.beginPath();g.arc(0,H,460,0,7);g.fill();
+  g.fillStyle="rgba(244,211,94,.10)";g.beginPath();g.arc(W/2,520,400,0,7);g.fill();
+  g.textBaseline="alphabetic";g.textAlign="center";
+  g.fillStyle="#F4D35E";g.font="800 30px "+FF;if("letterSpacing" in g)g.letterSpacing="9px";g.fillText("NIEUWE BADGE",W/2,118);if("letterSpacing" in g)g.letterSpacing="0px";
+  const done=()=>{
+    g.fillStyle="#FBF3DC";g.font="800 84px "+FF;g.fillText(b.name,W/2,1000,W-120);
+    g.font="600 34px "+FF;g.globalAlpha=.8;g.fillText(b.desc,W/2,1058,W-160);g.globalAlpha=1;
+    const who=(S.acct&&S.acct.name?"Verdiend door "+S.acct.name:"")+(b.at?(S.acct?" · ":"Verdiend op ")+new Date(b.at).toLocaleDateString("nl-BE",{day:"numeric",month:"long",year:"numeric"}):"");
+    if(who){g.fillStyle="#F4D35E";g.font="700 32px "+FF;g.fillText(who,W/2,1112,W-160)}
+    g.fillStyle="rgba(251,243,220,.25)";g.fillRect(W/2-300,1160,600,3);
+    g.fillStyle="#FBF3DC";g.font="800 54px "+FF;g.textAlign="left";const wm="moose",ww=g.measureText(wm).width,lx=(W-ww-96)/2;g.fillText(wm,lx+96,1240);
+    g.fillStyle="#F4D35E";g.font="800 30px "+FF;g.textAlign="center";g.fillText(HASH+"   ·   "+location.host,W/2,1300);
+    const im=new Image();im.onload=()=>{g.drawImage(im,lx,1190,82,68);c.toBlob(x=>res(x),"image/png")};im.onerror=()=>c.toBlob(x=>res(x),"image/png");
+    const sym=document.getElementById("moose");
+    im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" width="246" height="204" style="color:#F4D35E;--hole:#17402E">'+sym.innerHTML+'</svg>')};
+  const bi=new Image();bi.onload=()=>{const w=600,hh=w*bi.naturalHeight/bi.naturalWidth;g.save();g.shadowColor="rgba(0,0,0,.4)";g.shadowBlur=40;g.shadowOffsetY=18;g.drawImage(bi,(W-w)/2,170,w,hh);g.restore();done()};
+  bi.onerror=done;bi.src="/badges/"+b.id+".png"})}
+async function shareBadge(b,btn){
+  const old=btn.textContent;btn.disabled=true;btn.textContent="Even maken…";
+  try{try{await document.fonts.load('800 40px "Bricolage Grotesque"');await document.fonts.ready}catch(e){}
+    const blob=await drawBadgeCard(b),file=new File([blob],"moose-badge-"+b.id+".png",{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:badgeText(b)})}
+    else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      try{await navigator.clipboard.writeText(badgeText(b))}catch(e){}toast("Afbeelding bewaard. Tekst met "+HASH+" is gekopieerd.")}}
+  catch(e){if(e&&e.name!=="AbortError")toast("Delen lukte niet")}
+  btn.disabled=false;btn.textContent=old}
+function openBadge(b,fresh,more){
+  const old=document.getElementById("bdov");if(old)old.remove();
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc)},esc=e=>{if(e.key==="Escape")close()};
+  const ov=h("div",{class:"tkov",id:"bdov",role:"dialog","aria-modal":"true","aria-label":"Badge: "+b.name,onclick:e=>{if(e.target===ov||e.target.classList.contains("tkwrap"))close()}},
+    h("div",{class:"tkwrap"},h("div",{class:"bigmedal"},h("span",{class:"kick"},fresh?"Nieuwe badge!":"Jouw badge"),patchImg(b),h("h2",{},b.name),h("p",{},b.desc+(more?" Je haalde er nog "+more+" binnen, kijk in je account.":"")),
+      b.at?h("button",{class:"btn",onclick:e=>shareBadge(b,e.currentTarget)},"Deel badge"):null,
+      h("button",{class:"btn ghost",onclick:close},fresh?"Top!":"Sluiten"))));
+  document.body.append(ov);document.addEventListener("keydown",esc);if(fresh)setTimeout(()=>hearts(ov.querySelector(".patch")),350)}
 function celebrate(){
   if(!S.acct||!S.acct.badges||S.view==="barista"||document.getElementById("tkov")||document.getElementById("bdov"))return;
   const key="moose-bseen-"+S.acct.name.toLowerCase();let seen=[];try{seen=JSON.parse(LS(key)||"[]")}catch(e){}
   const fresh=S.acct.badges.filter(b=>b.at&&!seen.includes(b.id));if(!fresh.length)return;
-  const b=fresh[0];LS(key,JSON.stringify(seen.concat(fresh.map(x=>x.id))));
-  const close=()=>{ov.remove();document.removeEventListener("keydown",esc)},esc=e=>{if(e.key==="Escape")close()};
-  const ov=h("div",{class:"tkov",id:"bdov",role:"dialog","aria-modal":"true","aria-label":"Nieuwe badge: "+b.name,onclick:e=>{if(e.target===ov||e.target.classList.contains("tkwrap"))close()}},
-    h("div",{class:"tkwrap"},h("div",{class:"bigmedal"},h("span",{class:"kick"},"Nieuwe badge!"),medalSvg(b),h("h2",{},b.name),h("p",{},b.desc+(fresh.length>1?" Je haalde er nog "+(fresh.length-1)+" binnen, kijk in je account.":"")),h("button",{class:"btn",onclick:close},"Top!"))));
-  document.body.append(ov);document.addEventListener("keydown",esc);setTimeout(()=>hearts(ov.querySelector(".patch")),350)}
+  LS(key,JSON.stringify(seen.concat(fresh.map(x=>x.id))));
+  openBadge(fresh[0],true,fresh.length>1?fresh.length-1:0)}
 const RATE_TXT=["","Niet lekker","Kan beter","Goed","Lekker","Superlekker"];
 function rateBox(o){const r=o.rating||0;
   return h("div",{class:"rate"},h("b",{},r?"Bedankt voor je beoordeling!":"Hoe lekker was je koffie?"),
