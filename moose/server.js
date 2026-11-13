@@ -209,7 +209,30 @@ function gewone(u) {
   let best = null; for (const e of c.values()) if (!best || e.n > best.n) best = e;
   return best ? Object.assign({ count: best.n }, best.o) : null;
 }
-const me = u => ({ name: u.name, hist: (u.hist || []).slice(0, 12), gewone: gewone(u), total: u.total || 0 });
+const pub = o => { const { uid, rateCredited, credited, ...r } = o; return r; };
+// ---------- badges ----------
+const streakOf = u => { const d = [...new Set(u.days || [])].sort((a, b) => a - b); let best = 0, run = 0, prev = null; for (const x of d) { run = prev !== null && x - prev === 1 ? run + 1 : 1; best = Math.max(best, run); prev = x; } return best; };
+const MILES = [[1, "m1", "Eerste slok"], [10, "m10", "Jonge eland"], [20, "m20", "Vaste gast"], [50, "m50", "Eland van het huis"], [100, "m100", "Legende van het bos"]];
+const BADGES = [
+  ...MILES.map(([n, id, name]) => ({ id, name, kind: "mile", glyph: String(n), desc: n === 1 ? "Je eerste koffie bij Moose." : n + " koffies gedronken.", of: n, val: u => u.done || 0 })),
+  { id: "all", name: "Alles geproefd", kind: "fun", glyph: "grid", desc: "Elk drankje op de kaart geprobeerd.", of: DRINK_NAMES.length, val: u => (u.tried || []).length },
+  { id: "season", name: "Seizoensgast", kind: "fun", glyph: "leaf", desc: "Een seizoenssiroop geprobeerd.", of: 1, val: u => u.season ? 1 : 0 },
+  { id: "streak5", name: "Vijf op rij", kind: "fun", glyph: "flame", desc: "Vijf dagen op rij koffie gehaald.", of: 5, val: u => streakOf(u) },
+  { id: "jury", name: "Smaakjury", kind: "fun", glyph: "star", desc: "Zes koffies beoordeeld.", of: 6, val: u => u.rated || 0 },
+  { id: "early", name: "Vroege vogel", kind: "fun", glyph: "sun", desc: "Koffie besteld voor 9 uur.", of: 1, val: u => u.early || 0 },
+];
+function checkBadges(u) { u.bd = u.bd || {}; for (const b of BADGES) if (!u.bd[b.id] && b.val(u) >= b.of) u.bd[b.id] = Date.now(); }
+function creditDone(o) {
+  const u = o.uid && users.find(x => x.id === o.uid); if (!u) return;
+  const w = when(o.createdAt);
+  u.done = (u.done || 0) + 1; u.tried = u.tried || []; if (!u.tried.includes(o.drink)) u.tried.push(o.drink);
+  const sy = syrups.find(x => x.name === o.syrup); if (sy && sy.season) u.season = true;
+  if (w.hour < 9) u.early = (u.early || 0) + 1;
+  u.days = (u.days || []).concat(dayNum(w.day)).slice(-60);
+  checkBadges(u); saveCfg();
+}
+const badgesOf = u => BADGES.map(b => ({ id: b.id, name: b.name, kind: b.kind, glyph: b.glyph, desc: b.desc, of: b.of, n: Math.min(b.of, b.val(u)), at: (u.bd || {})[b.id] || null }));
+const me = u => ({ name: u.name, hist: (u.hist || []).slice(0, 12), gewone: gewone(u), total: u.total || 0, done: u.done || 0, badges: badgesOf(u) });
 
 // ---------- statistieken ----------
 // Alleen optellingen, geen bestellijst: dat blijft klein en past ook ver na de laatste 200 bestellingen nog. Een koffie telt mee zodra hij klaar is.
@@ -280,7 +303,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === "/healthz") return send(res, 200, { ok: true });
     if (url.pathname === "/api/orders" && req.method === "GET")
-      return send(res, 200, { orders, now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps, tips, syrups });
+      return send(res, 200, { orders: orders.map(pub), now: Date.now(), off, pin: !!PIN, prefix: CLIENT_PREFIX, ntfy: NTFY_SERVER, push: true, caps, tips, syrups });
     if (url.pathname === "/api/pin" && req.method === "POST") {
       const b = await readBody(req);
       if (blocked(req)) return deny(res, req);
@@ -439,14 +462,15 @@ const server = http.createServer(async (req, res) => {
       if (b.syrup && b.syrup !== "Geen" && !hasSyrup(s(b.syrup, 30))) return send(res, 400, { error: "Die siroop bestaat niet meer" });
       for (const [g, v] of [["drink", b.drink], ["milk", b.milk], ["syrup", b.syrup], ["sugar", b.sugar]])
         if (isOff(g, s(v, 30))) return send(res, 409, { error: s(v, 30) + " is op" });
-      const o = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), drink: s(b.drink, 30), dbl: !!b.dbl, milk: s(b.milk, 30), syrup: s(b.syrup, 30), sugar: s(b.sugar, 30), note: s(b.note, 200), name, by: s(b.by, 40), status: "nieuw", createdAt: Date.now() };
+      const au0 = userOf(req);
+      const o = { uid: au0 ? au0.id : undefined, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), drink: s(b.drink, 30), dbl: !!b.dbl, milk: s(b.milk, 30), syrup: s(b.syrup, 30), sugar: s(b.sugar, 30), note: s(b.note, 200), name, by: s(b.by, 40), status: "nieuw", createdAt: Date.now() };
       if (cp) { o.capId = cp.id; o.capN = need; o.capName = cp.name; o.capStr = cp.str; o.capSys = cp.sys; o.capDeca = !!cp.deca; const before = cp.n; cp.n -= need; capLow(cp, before); saveCfg(); }
       orders.unshift(o); orders = orders.slice(0, 200);
       const au = userOf(req);
       if (au) { au.hist = [{ drink: o.drink, dbl: o.dbl, milk: o.milk, syrup: o.syrup, sugar: o.sugar, note: o.note, capId: o.capId || "", capName: o.capName || "", at: o.createdAt }].concat(au.hist || []).slice(0, 30); au.total = (au.total || 0) + 1; saveCfg(); }
       save();
       notify("Nieuwe koffie van " + o.name, label(o) + (o.note ? " (" + o.note + ")" : ""), "order-" + o.id);
-      return send(res, 201, o);
+      return send(res, 201, pub(o));
     }
     const m = url.pathname.match(/^\/api\/orders\/([\w-]+)$/);
     if (m && req.method === "PATCH") {
@@ -465,6 +489,7 @@ const server = http.createServer(async (req, res) => {
         if (b.status === "klaar") {
           o.etaAt = null; o.readyAt = Date.now();
           ensureStats(); if (!o.counted) { o.counted = true; tally(o, 1); saveCfg(); }
+          if (!o.credited) { o.credited = true; creditDone(o); }
         }
       }
       if (b.accepted === true && b.status === "nieuw" && prev === "voorstel") notify(o.name + " neemt je voorstel aan", label(o), "order-" + o.id);
@@ -482,7 +507,9 @@ const server = http.createServer(async (req, res) => {
         if (!(r >= 1 && r <= 5)) return send(res, 400, { error: "ongeldige beoordeling" });
         if (!o.readyAt || !o.counted) return send(res, 409, { error: "Je kunt pas beoordelen als de koffie klaar is" });
         ensureStats(); if (o.rating) rate(stats, o, -1);
-        o.rating = r; rate(stats, o, 1); saveCfg();
+        o.rating = r; rate(stats, o, 1);
+        const ru = o.uid && !o.rateCredited && users.find(x => x.id === o.uid); if (ru) { o.rateCredited = true; ru.rated = (ru.rated || 0) + 1; checkBadges(ru); }
+        saveCfg();
       }
       if (b.reply !== undefined) o.reply = s(b.reply, 200);
       if (b.accepted !== undefined) o.accepted = !!b.accepted;
@@ -496,7 +523,7 @@ const server = http.createServer(async (req, res) => {
         o.etaMin = (o.etaMin || 0) + add; o.etaAt += add * 60000;
       }
       save();
-      return send(res, 200, o);
+      return send(res, 200, pub(o));
     }
     if (m && req.method === "DELETE") {
       if (!authed(req)) return deny(res, req);

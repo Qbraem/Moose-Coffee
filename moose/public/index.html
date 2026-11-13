@@ -121,6 +121,28 @@ body.closed{padding-bottom:0}
 .rdist em{font-style:normal;text-align:right;opacity:.8}
 .rbig{font:800 40px/1 var(--display);letter-spacing:-.02em}
 .starsro{color:var(--butter);letter-spacing:2px;font-size:15px}
+.bdg{margin:14px 0 4px;padding-top:12px;border-top:1px solid rgba(23,64,46,.15)}
+.bdg h4{margin:0 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.bdg h4 small{font-weight:700;opacity:.65;font-size:13px}
+.bnext{font-size:14px;font-weight:600;margin:0 0 6px}
+.bbar{height:10px;border-radius:6px;background:rgba(23,64,46,.12);overflow:hidden;margin-bottom:10px}
+.bbar i{display:block;height:100%;background:var(--pine);border-radius:6px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;margin:10px 0}
+.bd{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;font-size:12px;font-weight:700;line-height:1.2}
+.bd small{font-weight:600;opacity:.65;font-size:11px}
+.bd.lock{opacity:.7}
+.medal{width:64px;height:64px}
+.medal .m-bg{fill:var(--butter);stroke:var(--pine);stroke-width:3}
+.medal .m-g{fill:var(--pine);stroke:var(--pine)}
+.lock .medal .m-bg{fill:rgba(23,64,46,.08);stroke:rgba(23,64,46,.35);stroke-dasharray:4 4}
+.lock .medal .m-g{fill:rgba(23,64,46,.3);stroke:rgba(23,64,46,.3)}
+.medal text{font:800 22px var(--display);fill:var(--pine);stroke:none;text-anchor:middle}
+.lock .medal text{fill:rgba(23,64,46,.3)}
+.bigmedal .medal{width:150px;height:150px;animation:tin .6s cubic-bezier(.2,.9,.25,1.2)}
+.bigmedal{background:var(--paper,#FBF3DC);color:var(--pine);border-radius:24px;padding:26px 22px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.bigmedal h2{margin:6px 0 0;font:800 28px/1.1 var(--display);letter-spacing:-.02em}
+.bigmedal .kick{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.7}
+.bigmedal p{margin:0 0 8px;font-weight:600}
 .tkov{position:fixed;inset:0;z-index:40;background:rgba(9,28,20,.94);display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top,0px)) 18px max(18px,env(safe-area-inset-bottom,0px));overflow:auto;animation:fadein .2s}
 .tkwrap{margin:auto 0;width:min(340px,100%);display:flex;flex-direction:column;gap:14px;align-items:stretch}
 .ticket{filter:drop-shadow(0 18px 28px rgba(0,0,0,.4));animation:tin .55s cubic-bezier(.2,.9,.25,1.15);color:var(--pine)}
@@ -447,7 +469,7 @@ let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.n
 const S={view:["barista","stats"].includes(LS("moose-view"))?LS("moose-view"):"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",cap:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],tips:{},syrups:null,sf:{name:"",color:SYR_COL[0],season:"0"},sirDel:"",stats:null,hist:{open:false,n:30,sel:"",del:""},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",capOpen:"",capAdd:false,acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],tips:{},syrups:null,sf:{name:"",color:SYR_COL[0],season:"0"},sirDel:"",stats:null,hist:{open:false,n:30,sel:"",del:""},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",bopen:false,capOpen:"",capAdd:false,acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -625,7 +647,7 @@ async function loadMe(){
   if(!tok()){S.acct=null;renderAcct();return}
   try{S.acct=await api("GET","/api/me");const n=S.acct.name;if(S.f.name!==n){S.f.name=n;LS("koffie-naam",n);renderOpts();paintCta();paintNotif()}}
   catch(e){if(/niet ingelogd|401/.test(e.message)){LS("moose-token","");S.acct=null}}
-  renderAcct()}
+  renderAcct();celebrate()}
 async function acctGo(kind){
   const f=S.af;if(f.busy)return;f.busy=true;f.err="";renderAcct();
   try{const r=await api("POST","/api/account/"+kind,{name:f.name,pin:f.pin});LS("moose-token",r.token);f.pin="";f.name="";f.busy=false;await loadMe();toast(kind==="register"?"Account gemaakt, welkom "+r.name+"!":"Welkom terug, "+r.name+"!")}
@@ -650,6 +672,7 @@ function renderAcct(){
     const g=a.gewone,seen=new Set(),hist=[];for(const o of a.hist){const k=favTxt(o);if(!seen.has(k)){seen.add(k);hist.push(o)}if(hist.length>=5)break}
     fill(box,h("div",{class:"card"},h("h3",{},"Hoi "+a.name),
       g?[h("button",{class:"btn favbtn",onclick:()=>orderFav(g)},h("span",{},"Bestel je favoriet"),h("small",{},favTxt(g)+(g.count>1?" · "+g.count+"× besteld":""))),h("p",{},"Eén tik en de barista ziet het. Je kunt het daarna nog annuleren.")]:h("p",{},"Je bent ingelogd. Na je eerste bestelling verschijnt hier je favoriet."),
+      badgePanel(a),
       hist.length>1?[h("h4",{},"Eerder besteld"),h("div",{class:"hist"},hist.map(o=>h("button",{class:"btn",onclick:()=>redo(o)},favTxt(o))))]:null,
       S.del.open?h("div",{class:"pinrow"},h("input",{type:"password",id:"adp",class:"field",value:S.del.pin,placeholder:"Pincode om te wissen",inputmode:"numeric",maxlength:"6","aria-label":"Pincode bevestigen om je account te wissen",oninput:e=>{S.del.pin=e.target.value.replace(/\D/g,"");e.target.value=S.del.pin}}),
         h("button",{class:"btn",onclick:wipeAcct},"Definitief wissen"),h("button",{class:"btn ghost",onclick:()=>{S.del={open:false,pin:""};renderAcct()}},"Toch niet")):
@@ -911,7 +934,7 @@ function onData(prev){
   if(S.seen){const fresh=S.orders.filter(o=>!S.seen.has(o.id)&&o.status==="nieuw");if(fresh.length&&S.view==="barista"&&S.sound)beep()}
   S.seen=ids;
   const was=Object.fromEntries(prev.map(o=>[o.id,o.status])),m=mine();
-  if(prev.length&&m.some(o=>o.status==="klaar"&&was[o.id]&&was[o.id]!=="klaar")){try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}toast("Je koffie is klaar! Geef je sterren.")}
+  if(prev.length&&m.some(o=>o.status==="klaar"&&was[o.id]&&was[o.id]!=="klaar")){try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}toast("Je koffie is klaar! Geef je sterren.");loadMe()}
   document.title=S.view==="barista"?"Barista · Moose":S.view==="stats"?"Statistieken · Moose":m.some(o=>o.status==="klaar")?"Klaar! · Moose":"Moose · koffie";
   renderOrders();
   if(S.view==="barista"&&!isTyping())renderBarista();
@@ -945,10 +968,34 @@ setInterval(()=>{if(S.view==="stats")loadStats()},20000);
 /* ---------- fun: ticket, mascotte, delen ---------- */
 const HASH="#MooseCoffee";
 const starSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("aria-hidden","true");s.innerHTML='<path fill="currentColor" d="M12 2.8l2.8 5.9 6.4.9-4.7 4.5 1.2 6.4L12 17.4l-5.7 3.1 1.2-6.4L2.8 9.6l6.4-.9z"/>';return s};
+const GLY={grid:'<g class="m-g" stroke-width="0">'+[0,1,2].flatMap(r=>[0,1,2].map(c=>'<circle cx="'+(22+c*10)+'" cy="'+(22+r*10)+'" r="3"/>')).join("")+'</g>',
+  leaf:'<path class="m-g" stroke-width="1.5" stroke-linejoin="round" d="M19 45C19 25 33 17 47 18C48 32 42 45 24 46Z"/>',
+  flame:'<path class="m-g" stroke-width="1.5" stroke-linejoin="round" d="M32 14C36 24 44 28 44 38A12 12 0 0 1 20 38C20 32 24 30 26 24C28 28 30 28 32 14Z"/>',
+  star:'<path class="m-g" stroke-width="1.5" stroke-linejoin="round" transform="translate(11 10) scale(1.75)" d="M12 2.8l2.8 5.9 6.4.9-4.7 4.5 1.2 6.4L12 17.4l-5.7 3.1 1.2-6.4L2.8 9.6l6.4-.9z"/>',
+  sun:'<g class="m-g" stroke-width="3" stroke-linecap="round"><circle cx="32" cy="32" r="7"/>'+[0,1,2,3,4,5,6,7].map(i=>{const a=i*Math.PI/4;return '<line x1="'+(32+Math.cos(a)*12).toFixed(1)+'" y1="'+(32+Math.sin(a)*12).toFixed(1)+'" x2="'+(32+Math.cos(a)*17).toFixed(1)+'" y2="'+(32+Math.sin(a)*17).toFixed(1)+'"/>'}).join("")+'</g>'};
+function medalSvg(b){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 64 64");s.setAttribute("class","medal");s.setAttribute("aria-hidden","true");
+  const g=GLY[b.glyph]||'<text x="32" y="'+(b.glyph.length>2?39:40)+'" style="font-size:'+(b.glyph.length>2?"19px":b.glyph.length>1?"23px":"27px")+'">'+b.glyph+'</text>';
+  s.innerHTML='<circle class="m-bg" cx="32" cy="32" r="29"/>'+g;return s}
+const rankTitle=()=>{const m=(S.acct&&S.acct.badges||[]).filter(b=>b.kind==="mile"&&b.at);return m.length?m[m.length-1].name:""};
+function badgePanel(a){const B=a.badges||[];if(!B.length)return null;
+  const got=B.filter(b=>b.at).length,next=B.find(b=>b.kind==="mile"&&!b.at);
+  return h("div",{class:"bdg"},h("h4",{},"Mijn badges",h("small",{},got+" van "+B.length)),
+    next?[h("p",{class:"bnext"},"Nog "+(next.of-next.n)+(next.of-next.n===1?" koffie":" koffies")+" tot “"+next.name+"”"),h("div",{class:"bbar",role:"progressbar","aria-valuenow":next.n,"aria-valuemax":next.of,"aria-label":"Voortgang naar "+next.name},h("i",{style:"width:"+Math.round(next.n/next.of*100)+"%"}))]:h("p",{class:"bnext"},"Alle mijlpalen gehaald. Wat een eland!"),
+    h("button",{class:"btn ghost","aria-expanded":!!S.bopen,onclick:()=>{S.bopen=!S.bopen;renderAcct()}},S.bopen?"Verberg badges":"Bekijk alle badges"),
+    S.bopen?h("div",{class:"bgrid"},B.map(b=>h("div",{class:"bd"+(b.at?"":" lock")},medalSvg(b),h("span",{},b.name),h("small",{},b.at?b.desc:(b.of>1?b.n+" van "+b.of:b.desc))))):null)}
+function celebrate(){
+  if(!S.acct||!S.acct.badges||S.view==="barista"||document.getElementById("tkov")||document.getElementById("bdov"))return;
+  const key="moose-bseen-"+S.acct.name.toLowerCase();let seen=[];try{seen=JSON.parse(LS(key)||"[]")}catch(e){}
+  const fresh=S.acct.badges.filter(b=>b.at&&!seen.includes(b.id));if(!fresh.length)return;
+  const b=fresh[0];LS(key,JSON.stringify(seen.concat(fresh.map(x=>x.id))));
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc)},esc=e=>{if(e.key==="Escape")close()};
+  const ov=h("div",{class:"tkov",id:"bdov",role:"dialog","aria-modal":"true","aria-label":"Nieuwe badge: "+b.name,onclick:e=>{if(e.target===ov||e.target.classList.contains("tkwrap"))close()}},
+    h("div",{class:"tkwrap"},h("div",{class:"bigmedal"},h("span",{class:"kick"},"Nieuwe badge!"),medalSvg(b),h("h2",{},b.name),h("p",{},b.desc+(fresh.length>1?" Je haalde er nog "+(fresh.length-1)+" binnen, kijk in je account.":"")),h("button",{class:"btn",onclick:close},"Top!"))));
+  document.body.append(ov);document.addEventListener("keydown",esc);setTimeout(()=>hearts(ov.querySelector(".medal")),350)}
 const RATE_TXT=["","Niet lekker","Kan beter","Goed","Lekker","Superlekker"];
 function rateBox(o){const r=o.rating||0;
   return h("div",{class:"rate"},h("b",{},r?"Bedankt voor je beoordeling!":"Hoe lekker was je koffie?"),
-    h("div",{class:"stars",role:"radiogroup","aria-label":"Beoordeling, 1 tot 5 sterren"},[1,2,3,4,5].map(n=>h("button",{role:"radio","aria-checked":n===r,class:n<=r?"on":"","aria-label":n+(n===1?" ster":" sterren")+": "+RATE_TXT[n],onclick:()=>upd(o.id,{rating:n})},starSvg()))),
+    h("div",{class:"stars",role:"radiogroup","aria-label":"Beoordeling, 1 tot 5 sterren"},[1,2,3,4,5].map(n=>h("button",{role:"radio","aria-checked":n===r,class:n<=r?"on":"","aria-label":n+(n===1?" ster":" sterren")+": "+RATE_TXT[n],onclick:()=>{api("PATCH","/api/orders/"+o.id,{rating:n}).then(()=>{loadMe();return poll()}).catch(e=>toast(e.message))}},starSvg()))),
     h("small",{},r?RATE_TXT[r]+". Tik op een andere ster om te wijzigen.":"Tik op de sterren. De barista krijgt je cijfer te zien."))}
 const tno=o=>"#"+String(100+parseInt(o.id.slice(-4),36)%900);
 const mooseSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 120 100");s.setAttribute("aria-hidden","true");s.innerHTML='<use href="#moose"/>';return s};
@@ -971,7 +1018,7 @@ function drawTicket(o){return new Promise(res=>{
   g.fillStyle="#17402E";g.textBaseline="alphabetic";
   g.font="800 26px "+FF;g.fillText("MOOSE COFFEE  ·  TICKET",tx+56,ty+84);
   g.font="800 190px "+FF;g.fillText(tno(o),tx+52,ty+290);
-  g.font="700 38px "+FF;g.globalAlpha=.75;g.fillText(o.name,tx+56,ty+352);g.globalAlpha=1;
+  g.font="700 38px "+FF;g.globalAlpha=.75;g.fillText(o.name+(rankTitle()?" · "+rankTitle():""),tx+56,ty+352,tw-112);g.globalAlpha=1;
   g.font="800 68px "+FF;g.fillText(title(o),tx+56,ty+450,tw-112);
   let y=ty+510;g.font="600 32px "+FF;
   for(const [k,v] of ticketLines(o).slice(0,4)){g.globalAlpha=.6;g.fillText(k,tx+56,y);g.globalAlpha=1;g.font="700 32px "+FF;g.textAlign="right";g.fillText(String(v).slice(0,34),tx+tw-56,y);g.textAlign="left";g.font="600 32px "+FF;y+=48}
@@ -1003,7 +1050,7 @@ function openTicket(o){closeTicket();
   const ov=h("div",{class:"tkov",id:"tkov",role:"dialog","aria-modal":"true","aria-label":"Ticket "+tno(o),onclick:e=>{if(e.target===ov||e.target.classList.contains("tkwrap"))closeTicket()}},
     h("div",{class:"tkwrap"},
       h("div",{class:"ticket"},
-        h("div",{class:"tk-a"},h("div",{class:"tk-h"},h("span",{},"Moose Coffee · Ticket"),mooseSvg()),h("div",{class:"tk-no"},tno(o)),h("div",{class:"tk-who"},o.name),h("div",{class:"tk-dr"},title(o)),h("div",{class:"tk-l"},...lines.flat())),
+        h("div",{class:"tk-a"},h("div",{class:"tk-h"},h("span",{},"Moose Coffee · Ticket"),mooseSvg()),h("div",{class:"tk-no"},tno(o)),h("div",{class:"tk-who"},o.name+(rankTitle()?" · "+rankTitle():"")),h("div",{class:"tk-dr"},title(o)),h("div",{class:"tk-l"},...lines.flat())),
         h("div",{class:"tk-b"},bar.firstChild,h("div",{class:"tk-f"},h("span",{},stT(o.createdAt)),h("span",{},o.id.toUpperCase().slice(-6))),h("div",{class:"tk-tag"},HASH))),
       h("div",{class:"tkbtns"},share,h("button",{class:"btn sec",onclick:()=>{const t=shareText(o);try{navigator.clipboard.writeText(t).then(()=>toast("Tekst gekopieerd"),()=>toast("Kopiëren lukte niet"))}catch(e){toast("Kopiëren lukte niet")}}},"Kopieer tekst")),
       h("button",{class:"tkx",onclick:closeTicket},"Sluiten")));
