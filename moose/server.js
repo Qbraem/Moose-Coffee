@@ -493,6 +493,14 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
     if (url.pathname === "/api/stats" && req.method === "GET") return send(res, 200, statsOut());
+    if (url.pathname === "/api/stats/reset" && req.method === "POST") {
+      if (!authed(req)) return deny(res, req);
+      orders = orders.filter(o => ["nieuw", "bezig", "voorstel"].includes(o.status));
+      for (const o of orders) delete o.counted;
+      stats = null; ensureStats(); stats.since = Date.now();
+      save(); saveCfg();
+      return send(res, 200, { ok: true });
+    }
     if (req.method === "GET") {
       let p = path.normalize(decodeURIComponent(url.pathname));
       if (p === "/" || p === "\\") p = "/index.html";
