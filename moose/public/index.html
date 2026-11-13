@@ -31,7 +31,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:3px solid var(--tomato);outline-offset:2px}
 body[data-view=barista] :focus-visible{outline-color:var(--butter)}
 [hidden]{display:none!important}
-body[data-view=barista] .only-k,body[data-view=stats] .only-k,body[data-view=klant] .only-b,body[data-view=stats] .only-b,body:not([data-view=stats]) .only-s{display:none!important}
+body:not([data-view=klant]) .only-k,body:not([data-view=barista]) .only-b,body:not([data-view=stats]) .only-s,body:not([data-view=account]) .only-a{display:none!important}
 
 /* ---------- kop ---------- */
 .stage{background:var(--pine);color:var(--paper);padding-top:calc(14px + env(safe-area-inset-top,0px));border-radius:0 0 32px 32px;overflow:hidden;position:relative}
@@ -148,6 +148,9 @@ body.closed .evb{display:none}
 .bigmedal h2{margin:6px 0 0;font:800 28px/1.1 var(--display);letter-spacing:-.02em}
 .bigmedal .kick{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.7}
 .bigmedal p{margin:0 0 8px;font-weight:600}
+.acct-h{margin:6px 0 4px;font-size:clamp(30px,9vw,44px);font-weight:800;letter-spacing:-.04em;line-height:1}
+.acct .hist{margin-bottom:8px}
+.card.mini h3{margin-bottom:6px}
 .tkov{position:fixed;inset:0;z-index:40;background:rgba(9,28,20,.94);display:flex;align-items:flex-start;justify-content:center;padding:max(18px,env(safe-area-inset-top,0px)) 18px max(18px,env(safe-area-inset-bottom,0px));overflow:auto;animation:fadein .2s}
 .tkwrap{margin:auto 0;width:min(340px,100%);display:flex;flex-direction:column;gap:14px;align-items:stretch}
 .ticket{filter:drop-shadow(0 18px 28px rgba(0,0,0,.4));animation:tin .55s cubic-bezier(.2,.9,.25,1.15);color:var(--pine)}
@@ -392,7 +395,7 @@ body[data-view=stats] .stage{background:var(--pine);border-radius:0}
 .hdet .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .site{margin:34px auto 0;padding:18px 0 8px;border-top:1px solid rgba(23,64,46,.16);text-align:center;font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--pine);text-wrap:balance}
 .site2{max-width:1100px;margin:0 auto;padding:18px 18px calc(30px + var(--safe-b));border-top:0;color:var(--paper)}
-body[data-view=klant] .site2{display:none}
+body[data-view=klant] .site2,body[data-view=account] .site2{display:none}
 .capline{margin-top:4px;font-size:14px;font-weight:700;color:var(--butter)}
 </style>
 </head>
@@ -413,6 +416,7 @@ body[data-view=klant] .site2{display:none}
     <a class="brand" href="/" aria-label="Moose"><svg viewBox="0 0 120 100" aria-hidden="true"><use href="#moose"/></svg><b>moose</b></a>
     <div class="seg" role="tablist" aria-label="Kies je kant">
       <button role="tab" id="tk" aria-selected="true">Bestellen</button>
+      <button role="tab" id="ta" aria-selected="false">Account</button>
       <button role="tab" id="ts" aria-selected="false">Stats</button>
       <button role="tab" id="tb" aria-selected="false">Barista</button>
     </div>
@@ -430,13 +434,18 @@ body[data-view=klant] .site2{display:none}
 </div>
 
 <main id="klant" class="sheet only-k">
-  <section id="acct" class="acct" aria-label="Account"></section>
+  <section id="acctmini" class="acct" aria-label="Account"></section>
   <div id="opts"></div>
   <section id="orders" class="orders" aria-label="Mijn bestellingen"></section>
   <div id="notif" class="notif"></div>
   <footer class="site" id="ft1"></footer>
 </main>
 <div id="cta" class="cta only-k"></div>
+<main id="account" class="sheet only-a" aria-label="Account">
+  <h1 class="acct-h">Account</h1>
+  <section id="acct" class="acct" aria-label="Account"></section>
+  <footer class="site" id="ft3"></footer>
+</main>
 <main id="barista" class="q only-b"></main>
 <main id="stats" class="st only-s" aria-label="Statistieken"></main>
 <footer class="site site2" id="ft2"></footer>
@@ -472,10 +481,10 @@ function h(tag,props,...kids){const e=document.createElement(tag);
   kids.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(c))});return e}
 
 let uid=LS("koffie-dev");if(!uid){uid=Math.random().toString(36).slice(2)+Date.now().toString(36);LS("koffie-dev",uid)}
-const S={view:["barista","stats"].includes(LS("moose-view"))?LS("moose-view"):"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
+const S={view:["barista","stats","account"].includes(LS("moose-view"))?LS("moose-view"):"klant",orders:[],skew:0,sound:LS("moose-sound")!=="0",online:true,
   f:{drink:"Latte",dbl:false,milk:"Volle melk",syrup:"Geen",sugar:"Geen",name:LS("koffie-naam")||"",note:"",cap:"",err:false},
   pick:{},open:{},draft:{},seen:null,stat:null,
-  off:[],tips:{},syrups:null,sf:{name:"",color:SYR_COL[0],season:"0"},sirDel:"",stats:null,hist:{open:false,n:30,sel:"",del:""},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",bopen:false,capOpen:"",capAdd:false,acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
+  off:[],tips:{},syrups:null,sf:{name:"",color:SYR_COL[0],season:"0"},sirDel:"",stats:null,hist:{open:false,n:30,sel:"",del:""},caps:{list:[]},cf:{name:"",n:"",str:"",sys:"",deca:"0"},capDel:"",bopen:true,capOpen:"",capAdd:false,acct:null,af:{name:"",pin:"",busy:false,err:""},del:{open:false,pin:""},pushAvail:false,push:{on:{klant:false,barista:false},busy:false,checked:false},needPin:false,pinOk:false,pinChecking:false,prefix:"",ntfy:"https://ntfy.sh"};
 let lastOff="";
 const now=()=>Date.now()+S.skew;
 const PV="3"; // verhoog dit getal als je foto's vervangt
@@ -666,7 +675,13 @@ const favTxt=o=>title(o)+", "+spec(o);
 function orderFav(g){const f=S.f;Object.assign(f,{drink:g.drink,dbl:!!g.dbl,milk:g.milk,syrup:g.syrup,sugar:g.sugar,note:g.note||"",cap:capFrom(g)});
   if(isOff("drink",f.drink)){toast(f.drink+" is op");return}
   paintHero(true);paintStrip(true);renderOpts();paintCta();order()}
-function renderAcct(){
+function renderMini(){const box=$("#acctmini"),a=S.acct;
+  if(!a){fill(box,h("div",{class:"card mini"},h("h3",{},"Heb je een account?"),h("p",{},"Log in om je favoriet, je geschiedenis en je badges te bewaren."),h("div",{class:"acts"},h("button",{class:"btn ghost",onclick:()=>setView("account")},"Inloggen of account maken"))));return}
+  const g=a.gewone,got=(a.badges||[]).filter(b=>b.at).length;
+  fill(box,h("div",{class:"card mini"},h("h3",{},"Hoi "+a.name),
+    g?h("button",{class:"btn favbtn",onclick:()=>orderFav(g)},h("span",{},"Bestel je favoriet"),h("small",{},favTxt(g)+(g.count>1?" · "+g.count+"× besteld":""))):null,
+    h("div",{class:"acts"},h("button",{class:"btn ghost",onclick:()=>setView("account")},"Mijn account en badges ("+got+")"))))}
+function renderAcct(){renderMini();
   const box=$("#acct"),a=S.acct,f=S.af,ae=document.activeElement,keep=ae&&ae.closest&&ae.closest("#acct")&&ae.id?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
   if(!a){
     fill(box,h("div",{class:"card"},h("h3",{},"Account (niet verplicht)"),
@@ -966,10 +981,10 @@ function tick(){
 
 /* ---------- kanten wisselen ---------- */
 function setView(v){S.view=v;LS("moose-view",v);document.body.dataset.view=v;
-  $("#tk").setAttribute("aria-selected",v==="klant");$("#tb").setAttribute("aria-selected",v==="barista");$("#ts").setAttribute("aria-selected",v==="stats");
-  document.title=v==="barista"?"Barista · Moose":v==="stats"?"Statistieken · Moose":"Moose · koffie";
+  $("#ta").setAttribute("aria-selected",v==="account");$("#tk").setAttribute("aria-selected",v==="klant");$("#tb").setAttribute("aria-selected",v==="barista");$("#ts").setAttribute("aria-selected",v==="stats");
+  document.title=v==="barista"?"Barista · Moose":v==="stats"?"Statistieken · Moose":v==="account"?"Account · Moose":"Moose · koffie";
   if(v==="barista")renderBarista();if(v==="stats")loadStats();window.scrollTo(0,0)}
-$("#tk").onclick=()=>setView("klant");$("#tb").onclick=()=>setView("barista");$("#ts").onclick=()=>setView("stats");
+$("#ta").onclick=()=>setView("account");$("#tk").onclick=()=>setView("klant");$("#tb").onclick=()=>setView("barista");$("#ts").onclick=()=>setView("stats");
 setInterval(()=>{if(S.view==="stats")loadStats()},20000);
 
 
@@ -1103,7 +1118,7 @@ document.querySelector(".brand").addEventListener("click",e=>{if(e.metaKey||e.ct
 function hearts(from){const r=from.getBoundingClientRect();
   for(let i=0;i<9;i++){const s=heartSvg();s.setAttribute("class","fl");s.style.cssText="left:"+(r.left+r.width/2-9+(Math.random()*60-30))+"px;top:"+(r.top+4)+"px;width:"+(14+Math.random()*14)+"px;height:auto;--dx:"+(Math.random()*120-60)+"px;animation-delay:"+(i*70)+"ms";document.body.append(s);setTimeout(()=>s.remove(),1800)}}
 function loveBtn(){return h("div",{class:"lovewrap"},h("button",{class:"love",onclick:e=>{hearts(e.currentTarget);peek("Bedankt, Quinten! Dat is mijn baas.",4500)}},heartSvg(),h("span",{},h("small",{},"Moose Coffee, een project van"),"Gemaakt met liefde door Quinten")))}
-$("#ft1").append(loveBtn());$("#ft2").append(loveBtn());
+$("#ft1").append(loveBtn());$("#ft3").append(loveBtn());$("#ft2").append(loveBtn());
 async function shareStats(st){const txt="Moose Coffee heeft al "+st.total+(st.total===1?" koffie":" koffies")+" gemaakt "+HASH+" "+location.origin;
   try{if(navigator.share){await navigator.share({text:txt})}else{await navigator.clipboard.writeText(txt);toast("Tekst met "+HASH+" gekopieerd")}}catch(e){}}
 
