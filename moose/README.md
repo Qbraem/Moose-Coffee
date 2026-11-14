@@ -135,3 +135,7 @@ Nieuw: **Pumpkin Spice** (koffie met siroop "Pumpkin spice" klaar gemaakt).
 Opnieuw genereren: `python3 tools/badges/make_badges.py [id ...]` (Playwright + Bricolage Grotesque, pad via `MOOSE_FONT`).
 
 Badges delen: tik op een behaalde badge (of de "Nieuwe badge"-popup) en kies "Deel badge". Je krijgt een afbeelding 1080x1350 met Moose-logo, #MooseCoffee en de site-url; op telefoon opent het deelmenu, op desktop wordt de PNG gedownload.
+
+## Reviews
+
+Na het geven van sterren kan de klant een korte review (max. 240 tekens) schrijven of aanpassen. Reviews staan (met voornaam, drankje en sterren) onder "Wat gasten zeggen" in Stats en bij de bestelling in de baristaweergave. De barista kan een review verwijderen (PIN nodig). "Alles op nul zetten" wist ook de reviews.

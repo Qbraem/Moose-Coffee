@@ -116,6 +116,18 @@ body.closed{padding-bottom:0}
 .stars button[aria-checked=true],.stars button.on{color:var(--pine)}
 .stars button:active svg{transform:scale(1.2)}
 .rate small{display:block;font-weight:600;opacity:.8;margin-top:2px}
+ .rv{display:grid;gap:8px;margin-top:8px}
+.rvt{width:100%;box-sizing:border-box;min-height:64px;resize:vertical;border:2px solid rgba(23,64,46,.25);border-radius:12px;padding:10px 12px;font:600 15px/1.35 var(--body,inherit);background:#FFFBEF;color:var(--pine)}
+.rvt:focus{outline:3px solid var(--pine);outline-offset:1px}
+.rvr{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;font-weight:700}
+.rvq{margin:0;padding:10px 12px;border-radius:12px;background:rgba(255,251,239,.7);font-weight:600;font-style:italic}
+.rlist{display:grid;gap:10px;margin-top:10px}
+.rli{padding:12px 14px;border-radius:14px;background:rgba(23,64,46,.07)}
+.rli p{margin:4px 0 6px;font-weight:600;overflow-wrap:anywhere}
+.rli .rh{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:800}
+.rli .rh em{font-style:normal;color:#B8860B;letter-spacing:.06em}
+.rli small{font-weight:600;opacity:.65}
+.rli button{margin-left:8px;border:0;background:none;color:#B3261E;font:800 12px inherit;cursor:pointer;text-decoration:underline}
 .rdist{display:grid;gap:6px;margin-top:8px}
 .rdist div{display:grid;grid-template-columns:24px 1fr 28px;gap:8px;align-items:center;font-size:14px;font-weight:700}
 .rdist i{display:block;height:12px;border-radius:6px;background:var(--butter);min-width:4px}
@@ -745,6 +757,7 @@ function paintNotif(){const sl=slug(S.f.name),box=$("#notif"),kids=[pushCard("kl
       h("div",{class:"topic"},h("code",{},topic),h("button",{class:"btn",onclick:()=>{try{navigator.clipboard.writeText(topic).then(()=>toast("Gekopieerd"),()=>toast("Kopiëren lukte niet"))}catch(e){toast("Kopiëren lukte niet")}}},"Kopieer"))))}
   fill(box,...kids)}
 function renderOrders(){const list=mine(),box=$("#orders");
+  const ta=box.querySelector(".rvt");if(ta&&(document.activeElement===ta||ta.dataset.dirty))return;
   fill(box,h("h2",{},"Jouw bestellingen"),list.length?list.map(orderCard):h("div",{class:"empty"},(shopShut()?"Nog niets besteld.":"Nog niets besteld. Kies een drankje en druk op Bestel.")));paintNotif()}
 
 /* ---------- barista ---------- */
@@ -899,6 +912,7 @@ function renderStats(){
       st.rate&&st.rate.n?h("div",{class:"tile"},h("b",{},st.rate.avg.toFixed(1).replace(".",",")+"★"),h("span",{},"gemiddeld cijfer")):h("div",{class:"tile"},h("b",{},String(st.dbl)),h("span",{},"dubbele")),
       h("div",{class:"tile"},h("b",{},String(st.activeDays)),h("span",{},"dagen met koffie")),
       h("div",{class:"tile"},h("b",{},st.wait.n?Math.max(1,Math.round(st.wait.sum/st.wait.n/60))+" min":"–"),h("span",{},"gemiddelde wachttijd"))),
+    st.reviews&&st.reviews.length?h("div",{class:"card2"},h("h2",{},"Wat gasten zeggen"),h("div",{class:"rlist"},st.reviews.map(r=>h("div",{class:"rli"},h("div",{class:"rh"},h("span",{},r.name+" · "+r.drink),h("em",{"aria-label":r.rating+" van 5 sterren"},"★".repeat(r.rating)+"☆".repeat(5-r.rating))),h("p",{},"“"+r.text+"”"),h("small",{},stT(r.at)),S.needPin&&S.pinOk?h("button",{onclick:()=>{if(confirm("Review verwijderen?"))api("DELETE","/api/reviews/"+r.id).then(()=>{toast("Review verwijderd");return loadStats()}).catch(e=>toast(e.message))}},"Verwijderen"):null)))):null,
     st.rate&&st.rate.n?h("div",{class:"two2"},
       h("div",{class:"card2"},h("h2",{},"Hoe lekker?"),h("div",{class:"rbig"},st.rate.avg.toFixed(1).replace(".",",")+" ★"),h("p",{class:"lead",style:"margin:4px 0 0"},st.rate.n+(st.rate.n===1?" beoordeling":" beoordelingen")),
         h("div",{class:"rdist"},[5,4,3,2,1].map(n=>h("div",{},h("span",{},n+"★"),h("i",{style:"width:"+Math.max(4,Math.round(st.rate.dist[n-1]/Math.max(1,...st.rate.dist)*100))+"%"}),h("em",{},String(st.rate.dist[n-1])))))),
@@ -929,6 +943,7 @@ function histRow(o){const open=S.hist.sel===o.id;
       h("div",{},h("span",{class:"k"},"Suiker"),h("span",{},o.sugar)),
       o.capName?h("div",{},h("span",{class:"k"},"Capsule"),h("span",{},[o.capName,o.capDeca?"Deca":"",o.capSys,o.capStr?"sterkte "+o.capStr:"",o.capN>1?o.capN+" capsules":""].filter(Boolean).join(" · "))):null,
       o.note?h("div",{},h("span",{class:"k"},"Opmerking"),h("span",{},o.note)):null,
+      o.review?h("div",{},h("span",{class:"k"},"Review"),h("span",{},"“"+o.review+"”")):null,
       o.rating?h("div",{},h("span",{class:"k"},"Beoordeling"),h("span",{},"★".repeat(o.rating)+"☆".repeat(5-o.rating)+" ("+o.rating+"/5)")):null,
       o.reply?h("div",{},h("span",{class:"k"},"Jouw antwoord"),h("span",{},o.reply)):null,
       h("div",{},h("span",{class:"k"},"Besteld"),h("span",{},stT(o.createdAt))),
@@ -1056,9 +1071,17 @@ function celebrate(){
   openBadge(fresh[0],true,fresh.length>1?fresh.length-1:0)}
 const RATE_TXT=["","Niet lekker","Kan beter","Goed","Lekker","Superlekker"];
 function rateBox(o){const r=o.rating||0;
-  return h("div",{class:"rate"},h("b",{},r?"Bedankt voor je beoordeling!":"Hoe lekker was je koffie?"),
-    h("div",{class:"stars",role:"radiogroup","aria-label":"Beoordeling, 1 tot 5 sterren"},[1,2,3,4,5].map(n=>h("button",{role:"radio","aria-checked":n===r,class:n<=r?"on":"","aria-label":n+(n===1?" ster":" sterren")+": "+RATE_TXT[n],onclick:()=>{api("PATCH","/api/orders/"+o.id,{rating:n}).then(()=>{loadMe();return poll()}).catch(e=>toast(e.message))}},starSvg()))),
-    h("small",{},r?RATE_TXT[r]+". Tik op een andere ster om te wijzigen.":"Tik op de sterren. De barista krijgt je cijfer te zien."))}
+  const stars=h("div",{class:"stars",role:"radiogroup","aria-label":"Beoordeling, 1 tot 5 sterren"},[1,2,3,4,5].map(n=>h("button",{role:"radio","aria-checked":n===r,class:n<=r?"on":"","aria-label":n+(n===1?" ster":" sterren")+": "+RATE_TXT[n],onclick:()=>{api("PATCH","/api/orders/"+o.id,{rating:n}).then(()=>{loadMe();return poll()}).catch(e=>toast(e.message))}},starSvg())));
+  const box=h("div",{class:"rate"},h("b",{},r?"Bedankt voor je beoordeling!":"Hoe lekker was je koffie?"),stars,
+    h("small",{},r?RATE_TXT[r]+". Tik op een andere ster om te wijzigen.":"Tik op de sterren. De barista krijgt je cijfer te zien."));
+  if(!r)return box;
+  if(o.review&&!box._edit){box.append(h("div",{class:"rv"},h("p",{class:"rvq"},"“"+o.review+"”"),h("div",{class:"rvr"},h("span",{},"Je review staat bij “Wat gasten zeggen”."),h("button",{class:"btn sec",style:"padding:6px 12px;font-size:13px",onclick:e=>{const w=e.currentTarget.closest(".rv");w.replaceWith(reviewForm(o))}},"Aanpassen"))));return box}
+  box.append(reviewForm(o));return box}
+function reviewForm(o){
+  const t=h("textarea",{class:"rvt",maxlength:"240",rows:"3",placeholder:"Schrijf een korte review (optioneel)…","aria-label":"Korte review",value:o.review||""});t.value=o.review||"";
+  const cnt=h("span",{},t.value.length+"/240");t.addEventListener("input",()=>{t.dataset.dirty="1";cnt.textContent=t.value.length+"/240"});
+  const btn=h("button",{class:"btn",style:"padding:8px 16px;font-size:14px",onclick:async()=>{btn.disabled=true;try{await api("PATCH","/api/orders/"+o.id,{review:t.value});t.dataset.dirty="";toast(t.value.trim()?"Bedankt voor je review!":"Review verwijderd");await poll()}catch(e){toast(e.message)}btn.disabled=false}},o.review?"Opslaan":"Plaats review");
+  return h("div",{class:"rv"},t,h("div",{class:"rvr"},cnt,btn))}
 const tno=o=>"#"+String(100+parseInt(o.id.slice(-4),36)%900);
 const mooseSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 120 100");s.setAttribute("aria-hidden","true");s.innerHTML='<use href="#moose"/>';return s};
 const heartSvg=()=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("aria-hidden","true");s.innerHTML='<path fill="currentColor" d="M12 21.2l-1.4-1.3C5.4 15.2 2 12.1 2 8.3 2 5.2 4.4 3 7.4 3c1.7 0 3.4.8 4.6 2.1C13.2 3.8 14.9 3 16.6 3 19.6 3 22 5.2 22 8.3c0 3.8-3.4 6.9-8.6 11.6L12 21.2z"/>';return s};

@@ -319,7 +319,7 @@ function statsOut() {
   const last14 = []; for (let i = 13; i >= 0; i--) { const d = new Date((dayNum(today) - i) * 864e5).toISOString().slice(0, 10); last14.push({ day: d, n: st.days[d] || 0 }); }
   const people = Object.values(st.people).sort((a, b) => b.n - a.n).slice(0, 5).map(p => ({ name: p.name, n: p.n, fav: (Object.entries(p.drinks).sort((a, b) => b[1] - a[1])[0] || [""])[0] }));
   const rt = st.rate || { n: 0, sum: 0, dist: [0, 0, 0, 0, 0], drinks: {} };
-  return { rate: { n: rt.n, avg: rt.n ? rt.sum / rt.n : 0, dist: rt.dist, drinks: Object.entries(rt.drinks).map(([d, x]) => ({ drink: d, n: x.n, avg: x.sum / x.n })).sort((a, b) => b.avg - a.avg || b.n - a.n) }, since: st.since, total: st.total, caps: st.caps, dbl: st.dbl, deca: st.deca, drinks: st.drinks, milk: st.milk, syrup: st.syrup, sugar: st.sugar, capNames: st.capNames, hours: st.hours, wdays: st.wdays, last14, best, streak: { cur, max }, wait: st.wait, people, activeDays: days.length, today: st.days[today] || 0 };
+  return { reviews: (st.reviews || []).slice(-12).reverse().map(({ oid, ...r }) => r), rate: { n: rt.n, avg: rt.n ? rt.sum / rt.n : 0, dist: rt.dist, drinks: Object.entries(rt.drinks).map(([d, x]) => ({ drink: d, n: x.n, avg: x.sum / x.n })).sort((a, b) => b.avg - a.avg || b.n - a.n) }, since: st.since, total: st.total, caps: st.caps, dbl: st.dbl, deca: st.deca, drinks: st.drinks, milk: st.milk, syrup: st.syrup, sugar: st.sugar, capNames: st.capNames, hours: st.hours, wdays: st.wdays, last14, best, streak: { cur, max }, wait: st.wait, people, activeDays: days.length, today: st.days[today] || 0 };
 }
 
 // ---------- voorraad ----------
@@ -526,7 +526,7 @@ const server = http.createServer(async (req, res) => {
       // Een klant mag alleen zijn bestelling sluiten of een voorstel aannemen. De rest vraagt de code.
       const customerAct = (b.status === "weg" && keys.length === 1) ||
         (o.status === "voorstel" && b.status === "nieuw" && b.accepted === true && keys.every(k => k === "status" || k === "accepted")) ||
-        (keys.length === 1 && b.rating !== undefined);
+        (keys.length >= 1 && keys.every(k => k === "rating" || k === "review") && (b.rating !== undefined || b.review !== undefined));
       if (!customerAct && !authed(req)) return deny(res, req);
       const prev = o.status;
       if (b.status !== undefined) {
@@ -553,9 +553,17 @@ const server = http.createServer(async (req, res) => {
         if (!(r >= 1 && r <= 5)) return send(res, 400, { error: "ongeldige beoordeling" });
         if (!o.readyAt || !o.counted) return send(res, 409, { error: "Je kunt pas beoordelen als de koffie klaar is" });
         ensureStats(); if (o.rating) rate(stats, o, -1);
-        o.rating = r; rate(stats, o, 1);
+        o.rating = r; rate(stats, o, 1); (stats.reviews || []).forEach(x => { if (x.oid === o.id) x.rating = r; });
         const ru = o.uid && !o.rateCredited && users.find(x => x.id === o.uid); if (ru) { o.rateCredited = true; ru.rated = (ru.rated || 0) + 1; checkBadges(ru); }
         saveCfg();
+      }
+      if (b.review !== undefined) {
+        if (!o.readyAt || !o.counted) return send(res, 409, { error: "Je kunt pas een review schrijven als de koffie klaar is" });
+        if (!o.rating) return send(res, 409, { error: "Geef eerst sterren" });
+        const t = s(String(b.review).replace(/\s+/g, " ").trim(), 240);
+        ensureStats(); stats.reviews = (stats.reviews || []).filter(x => x.oid !== o.id);
+        if (t) stats.reviews.push({ id: "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), oid: o.id, name: String(o.name || "Gast").split(/\s+/)[0].slice(0, 20), drink: o.drink, rating: o.rating, text: t, at: Date.now() });
+        stats.reviews = stats.reviews.slice(-100); o.review = t; saveCfg();
       }
       if (b.reply !== undefined) o.reply = s(b.reply, 200);
       if (b.accepted !== undefined) o.accepted = !!b.accepted;
@@ -582,6 +590,13 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
     if (url.pathname === "/api/stats" && req.method === "GET") return send(res, 200, statsOut());
+    const rv = url.pathname.match(/^\/api\/reviews\/([\w-]+)$/);
+    if (rv && req.method === "DELETE") {
+      if (!authed(req)) return deny(res, req);
+      ensureStats(); const r = (stats.reviews || []).find(x => x.id === rv[1]);
+      if (r) { const o = orders.find(x => x.id === r.oid); if (o) o.review = ""; stats.reviews = stats.reviews.filter(x => x !== r); save(); saveCfg(); }
+      return send(res, 200, { ok: true });
+    }
     if (url.pathname === "/api/stats/reset" && req.method === "POST") {
       if (!authed(req)) return deny(res, req);
       orders = orders.filter(o => ["nieuw", "bezig", "voorstel"].includes(o.status));
